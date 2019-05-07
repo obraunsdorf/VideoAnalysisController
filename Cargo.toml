@@ -1,0 +1,11 @@
+[package]
+name = "rust-vlc"
+version = "0.1.0"
+authors = ["Oliver Braunsdorf <oliver.braunsdorf@aisec.fraunhofer.de>"]
+edition = "2018"
+build = "build.rs"
+
+[dependencies]
+vlc-rs = { path = "../vlc-rs" }
+gilrs = "0.7.1"
+libmath = "0.2.1"
