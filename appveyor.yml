@@ -62,6 +62,8 @@ deploy_script:
 - ps: >-
     $TOKEN = $env:SECURE_GITHUB_TOKEN
 
+    $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
+
     cargo build --target %TARGET% --release
 
     bash deploy.sh target/release/VideoAnalysisController.exe VideoAnalysisController.exe "VideoAnalysisController for Windows" $TOKEN
