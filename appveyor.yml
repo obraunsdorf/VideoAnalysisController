@@ -62,7 +62,7 @@ test_script:
       cargo build --release
     )
 
-deploy:
+deploy_script:
 - ps: >-
     $TOKEN = $env:SECURE_GITHUB_TOKEN
 
