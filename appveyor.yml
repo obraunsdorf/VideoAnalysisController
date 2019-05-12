@@ -16,7 +16,7 @@ environment:
     SECURE_GITHUB_TOKEN:
       secure: yf7Him/R+dJ/gKfZR+Hqc3cwuZVQMWOuR1WZ9XuMwmkWyQD6yDIqUaFIBzcr0oEW
     APPVEYOR_CACHE_SKIP_RESTORE: false
-    ENABLE_REMOTE_DESKTOP: false
+    ENABLE_REMOTE_DESKTOP: true
 
   # TODO These are all the build jobs. Adjust as necessary. Comment out what you
   # don't need
@@ -54,7 +54,10 @@ install:
   #- ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
   - ps: $vlcdl = 'https://ftp.fau.de/videolan/vlc/3.0.6/win64/vlc-3.0.6-win64.7z'
   - ps: Invoke-WebRequest $vlcdl -OutFile "vlc.7z"
+  - ps: $ffmpegdl = 'https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-4.1.3-win64-static.zip'
+  - ps: Invoke-WebRequest $ffmpegdl -OutFile "ffmpeg.zip"
   - 7z x vlc.7z
+  - 7z x ffmpeg.zip
 
 # TODO This is the "test phase", tweak it as you see fit
 test_script:
