@@ -68,9 +68,11 @@ deploy_script:
 
     cargo build --release
 
+    'C:\Program Files (x86)\Inno Setup 5\ISCC' innosetup.iss
+
     if($env:ENABLE_REMOTE_DESKTOP -eq $true) {$blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))}
-- cmd: C:\Program Files (x86)\Inno Setup 5\ISCC C:\projects\videoanalysiscontroller\innosetup.iss
-- ps: bash deploy.sh VACsetup.exe VACSetup.exe "VideoAnalysisController for Windows" $TOKEN
+
+    bash deploy.sh VACsetup.exe VACSetup.exe "VideoAnalysisController for Windows" $TOKEN
 
 cache:
   - C:\Users\appveyor\.cargo\registry
