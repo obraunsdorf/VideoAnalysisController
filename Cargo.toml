@@ -8,5 +8,5 @@ build = "build.rs"
 [dependencies]
 vlc-rs = { git  = "https://github.com/garkimasera/vlc-rs" }
 gilrs = "0.7.1"
-crossterm = "0.9.3"
-glutin = "0.21.0"
+#crossterm = "0.9.3"
+#glutin = "0.21.0"

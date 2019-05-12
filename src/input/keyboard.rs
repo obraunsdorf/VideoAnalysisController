@@ -1,4 +1,4 @@
-use crossterm::{RawScreen, AsyncReader, InputEvent, KeyEvent, SyncReader};
+//use crossterm::{RawScreen, AsyncReader, InputEvent, KeyEvent, SyncReader};
 
 use super::super::Action as Action;
 use super::super::ClipOf_O_D as ClipOf_O_D;
@@ -30,7 +30,7 @@ fn get_action(key: char) -> Option<Action> {
 
 pub fn read_keyboard2(tx: std::sync::mpsc::Sender<Action>) {
     println!("starting to read");
-    let mut el = glutin::EventsLoop::new();
+    /*let mut el = glutin::EventsLoop::new();
     let wb = glutin::WindowBuilder::new()
         .with_title("Hello world!")
         .with_dimensions(glutin::dpi::LogicalSize::new(1024.0, 768.0));
@@ -40,10 +40,10 @@ pub fn read_keyboard2(tx: std::sync::mpsc::Sender<Action>) {
 
     el.poll_events(|event| {
         println!("{:?}", event);
-    })
+    })*/
 }
 
-pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
+/*pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
     // make sure to enable raw mode, this will make sure key events won't be handled by the terminal it's self and allows crossterm to read the input and pass it back to you.
     let screen = RawScreen::into_raw_mode();
 
@@ -70,4 +70,4 @@ pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
             }
         }
     }
-}
+}*/
