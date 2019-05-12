@@ -70,7 +70,9 @@ deploy_script:
 
     if($env:ENABLE_REMOTE_DESKTOP -eq $true) {$blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))}
 
-    bash deploy.sh target/release/VideoAnalysisController.exe VideoAnalysisController.exe "VideoAnalysisController for Windows" $TOKEN
+    "C:\Program Files (x86)\Inno Setup 5\ISCC" C:\projects\videoanalysiscontroller\innosetup.iss
+
+    bash deploy.sh VACsetup.exe VACSetup.exe "VideoAnalysisController for Windows" $TOKEN
 
 cache:
   - C:\Users\appveyor\.cargo\registry
