@@ -46,10 +46,10 @@ install:
   - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
   - rustc -Vv
   - cargo -V
+  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
   - ps: $vlcdl = 'https://get.videolan.org/vlc/3.0.6/win64/vlc-3.0.6-win64.7z'
   - ps: Invoke-WebRequest $vlcdl -OutFile "vlc.7z"
   - 7z x vlc.7z
-  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
 
 # TODO This is the "test phase", tweak it as you see fit
 test_script:
