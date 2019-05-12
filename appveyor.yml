@@ -62,7 +62,7 @@ deploy_script:
 - ps: >-
     $TOKEN = $env:SECURE_GITHUB_TOKEN
 
-    cargo rustc --target %TARGET% --release -- -C lto
+    cargo build --target %TARGET% --release
 
     bash deploy.sh target/release/VideoAnalysisController.exe VideoAnalysisController.exe "VideoAnalysisController for Windows" $TOKEN
 
