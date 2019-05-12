@@ -1,5 +1,7 @@
 VideoAnalysisController
 ======================
+[![Build status](https://ci.appveyor.com/api/projects/status/ijnogdj1n1cj673x?svg=true)](https://ci.appveyor.com/project/obraunsdorf/videoanalysiscontroller) 
+
 VideoAnalysisController (VAC) is a VLC-based video player with focus on sports video analysis. It is written to be controlled by any Game Controller similar to Xbox / Playstation.
 You can use it to
 
@@ -11,7 +13,6 @@ You can use it to
 VAC is primarily dedicated to the flag football community as most of the teams (at least in Germany) cannot afford a commercial tool.
 
 VideoAnalysisController is distributed for Windows (only 64-Bit at the moment), but can also be built for Linux.
-[![Build status](https://ci.appveyor.com/api/projects/status/ijnogdj1n1cj673x?svg=true)](https://ci.appveyor.com/project/obraunsdorf/videoanalysiscontroller) 
 
 
 ## How to install   
@@ -22,17 +23,19 @@ VideoAnalysisController is distributed for Windows (only 64-Bit at the moment), 
 ## How to use
  - To start a video in VAC, right-click on the video -> open with -> select the VAC executable (most likely C:\Program Files\VideoAnalysisController\VideoAnalysisController.exe)
 
- - To start multiple videos in one directory, open the windows command line and type ```"C:\Program Files\VideoAnalysisController\VideoAnalysisController.exe" Path\To\Directory```
+ - To start multiple videos in one directory, open the windows command line and type 
+
+    "C:\Program Files\VideoAnalysisController\VideoAnalysisController.exe" Path\To\Directory
 
 
 
 ## How to build
- - Clone this repository
- - Get the nightly rust toolchain
- - Download and unzip VLC (<https://ftp.fau.de/videolan/vlc/3.0.6/win64/vlc-3.0.6-win64.7z>) to the cloned repository folder
- - Download ffmpeg (<https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-4.1.3-win64-static.zip>) and extract the ffmpeg.exe to the cloned repository folder
- - Do a ```cargo build```
- - Have Fun.
+ 1. Clone this repository
+ 2. Get the nightly rust toolchain
+ 3. Download and unzip VLC (<https://ftp.fau.de/videolan/vlc/3.0.6/win64/vlc-3.0.6-win64.7z>) to the cloned repository folder
+ 4. Download ffmpeg (<https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-4.1.3-win64-static.zip>) and extract the ffmpeg.exe to the cloned repository folder
+ 5. Do a ```cargo build```
+ 6. Have Fun.
 
 
 ## How to contribute
