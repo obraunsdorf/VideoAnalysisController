@@ -55,18 +55,16 @@ install:
 test_script:
   # we don't run the "test phase" when doing deploys
   - if [%APPVEYOR_REPO_TAG%]==[false] (
-      cargo build --target %TARGET% --release
+      cargo build --release
     )
 
 deploy_script:
 - ps: >-
     $TOKEN = $env:SECURE_GITHUB_TOKEN
 
-    $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
+    cargo build --release
 
-    cargo build --target %TARGET% --release
-
-    bash deploy.sh target/%TARGET%/release/VideoAnalysisController.exe VideoAnalysisController.exe "VideoAnalysisController for Windows" $TOKEN
+    bash deploy.sh target/release/VideoAnalysisController.exe VideoAnalysisController.exe "VideoAnalysisController for Windows" $TOKEN
 
 cache:
   - C:\Users\appveyor\.cargo\registry
