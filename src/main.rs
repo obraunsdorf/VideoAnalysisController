@@ -1,20 +1,23 @@
 #![feature(duration_float)]
 
 
-use std::sync::mpsc::{channel, Sender};
-use std::thread;
+use std::sync::mpsc::{channel};
 use std::process::Command;
 use std::string::{ToString, String};
 use std::collections::btree_set::BTreeSet;
 
-use vlc::{Instance, Media, MediaPlayer, Event, EventType, State};
-use vlc::EventType as VLCEventType;
-
-use gilrs::{Gilrs, Button};
-use gilrs::EventType as GilrsEventType;
+use vlc::{Instance, Media, MediaPlayer, Event, EventType, State, MediaPlayerVideoEx};
 
 
-enum Action {
+mod input;
+use std::path::{Path, PathBuf};
+
+pub enum ClipOf_O_D {
+    Offense,
+    Defense,
+}
+
+pub enum Action {
     TogglePlayPause,
     Rewind(f32),
     Forward(f32),
@@ -23,7 +26,7 @@ enum Action {
     StartLoop,
     EndLoop,
     CheckLoopEnd(f32),
-    CutCurrentLoop,
+    CutCurrentLoop(Option<ClipOf_O_D>),
     NextMedia,
     PreviousMedia,
     RestartMedia,
@@ -38,75 +41,21 @@ enum Action {
 static MAX_SPEED: f32 = 16.0;
 static BREAKPOINT: f32 = 0.5;
 
-fn spawn_thread_read_controller(tx_orig: &std::sync::mpsc::Sender<Action>) {
+const VIDEO_EXTENSIONS: &[&str] = &["MOV", "MPEG"];
+
+
+/*fn check_loop_end(tx_orig: &std::sync::mpsc::Sender<Action>,
+                  mdp: &MediaPlayer,
+                  loop_start: i64,
+                  loop_end: i64
+) {
     let tx = tx_orig.clone();
-    thread::spawn(|| {
-        read_controller(tx);
-    });
-}
+    std::thread::spawn(|| {
+        loop
+    })
+}*/
 
-fn read_controller(tx_orig: std::sync::mpsc::Sender<Action>) {
-    let tx = tx_orig.clone();
-    let mut gilrs = Gilrs::new().unwrap();
-
-    println!("list gamepads:");
-    for (_id, gamepad) in gilrs.gamepads() {
-        println!("{} is {:?}", gamepad.name(), gamepad.power_info());
-    }
-
-   let mut last_DPadLeft_pressed= std::time::Instant::now();
-
-    loop {
-        // Examine new events
-        while let Some(gilrs::Event { id, event, time }) = gilrs.next_event() {
-            println!("{:?} New event from {}: {:?}", time, id, event);
-            match event {
-                gilrs::EventType::ButtonPressed(btn, _) => {
-                    match btn {
-                        gilrs::Button::Start => tx.send(Action::Exit).unwrap(),
-                        gilrs::Button::South => tx.send(Action::TogglePlayPause).unwrap(),
-                        gilrs::Button::West => tx.send(Action::StartLoop).unwrap(),
-                        gilrs::Button::East => tx.send(Action::EndLoop).unwrap(),
-                        gilrs::Button::North => tx.send(Action::CutCurrentLoop).unwrap(),
-                        gilrs::Button::LeftTrigger => tx.send(Action::DecreaseSpeed).unwrap(),
-                        gilrs::Button::RightTrigger => tx.send(Action::IncreaseSpeed).unwrap(),
-                        Button::DPadRight => tx.send(Action::NextClip).unwrap(),
-                        Button::DPadLeft => {
-                            last_DPadLeft_pressed = std::time::Instant::now();
-                        },
-                        _ => {}
-                    }
-                }
-
-                gilrs::EventType::ButtonReleased(btn, _) => {
-                    match btn {
-                        Button::DPadLeft => {
-                            if last_DPadLeft_pressed.elapsed() > std::time::Duration::from_millis(500) {
-                                tx.send(Action::PreviousClip).unwrap();
-                            } else {
-                                tx.send(Action::RestartClip).unwrap();
-                            }
-                        },
-                        _ => {}
-                    }
-                }
-
-                gilrs::EventType::ButtonChanged(btn, pos, _) => {
-                    match btn {
-                        Button::LeftTrigger => tx.send(Action::Rewind(pos)).unwrap(),
-                        Button::LeftTrigger2 => tx.send(Action::Rewind(pos)).unwrap(),
-                        Button::RightTrigger => tx.send(Action::Forward(pos)).unwrap(),
-                        Button::RightTrigger2 => tx.send(Action::Forward(pos)).unwrap(),
-                        _ => {}
-                    }
-                }
-                _ => {}
-            };
-        }
-    }
-}
-
-fn load_media(vlc_instance: &vlc::Instance, path: &String, tx_0: &std::sync::mpsc::Sender<Action>)
+fn load_media(vlc_instance: &vlc::Instance, path: &Path, tx_0: &std::sync::mpsc::Sender<Action>)
     -> Media {
     //let md = Media::new_location(&instance, "https://www.youtube.com/watch?v=M3Q8rIgveO0").unwrap();
     let tx = tx_0.clone();
@@ -147,23 +96,43 @@ fn main() {
     println!("args: {:?}", args);
 
 
-    if args.len() < 1 {
+    if args.len() < 2 {
+        println!("Please specify a video file");
         println!("Usage: gac path_to_a_media_file");
         return;
     }
-    let media_paths = Vec::from(&args[1..]);
+
+    let mut media_paths: Vec<PathBuf> = Vec::new();
+    for arg in args[1..].iter() {
+        let p = PathBuf::from(arg);
+        if p.is_dir() {
+            for dir_entry_result in p.read_dir().unwrap(){
+                if let Ok(directory_entry) = dir_entry_result {
+                    if let Some(s) = directory_entry.path().extension() {
+                        if let Some(extension) = s.to_str() {
+                            if VIDEO_EXTENSIONS.contains(&extension.to_uppercase().as_str()) {
+                                media_paths.push(directory_entry.path());
+                            }
+                        }
+                    }
+                }
+            }
+            break;
+        }
+        media_paths.push(p);
+    }
     let mut media_iter = media_paths.iter().cycle();
     let mut path = media_iter.next().unwrap();
 
     let (tx, rx) = channel::<Action>();
 
-    spawn_thread_read_controller(&tx);
+    input::spawn_input_threads_with_sender(&tx);
 
-    let vlc_args: Vec<String> = vec![
+    let instance = Instance::new().unwrap();
+    /*let vlc_args: Vec<String> = vec![
         String::from("--verbose=2")
     ];
-    let instance = Instance::new().unwrap();
-    //let instance = Instance::with_args(Some(vlc_args)).unwrap();
+    let instance = Instance::with_args(Some(vlc_args)).unwrap();*/
     //instance.add_intf("qt");
 
 
@@ -177,6 +146,9 @@ fn main() {
     let mdp = MediaPlayer::new(&instance).unwrap();
     let mut md = load_media(&instance, path, &tx);
     mdp.set_media(&md);
+    if mdp.get_fullscreen() == false {
+        mdp.toggle_fullscreen();
+    }
     mdp.play();
 
     let mut loop_start: i64 = -1;
@@ -186,7 +158,15 @@ fn main() {
     let mut clips: BTreeSet<i64> = BTreeSet::new();
 
     loop {
-        match rx.recv().unwrap() {
+        if loop_end != -1 && mdp.get_time().unwrap() >= loop_end {
+            mdp.set_time(loop_start);
+        }
+        let result = rx.try_recv();
+        if result.is_err() {
+            continue;
+        }
+        let action = result.unwrap();
+        match action {
             Action::TogglePlayPause => {
                 if mdp.is_playing() {
                     mdp.pause();
@@ -244,6 +224,56 @@ fn main() {
                 mdp.set_rate(current_speed - 0.1);
             }
 
+            Action::CutCurrentLoop(o_d_option) => {
+                clips.insert(loop_start);
+                println!("cutting from {:?} to {:?}...", loop_start, loop_end);
+
+                let s = String::from(path.to_str().unwrap()) + "_clips";
+                let clips_dir_path = Path::new(s.as_str());
+                if clips_dir_path.exists() == false {
+                    std::fs::create_dir(&clips_dir_path).expect("unable to create directory");
+                }
+
+                let mut extension = "";
+                if let Some(s) = path.extension() {
+                    if let Some(ext) = s.to_str() {
+                        extension = ext;
+                    }
+                }
+                let mut out_file_name = loop_start.to_string();
+                if let Some(off_def) = o_d_option {
+                    match off_def {
+                        ClipOf_O_D::Offense => out_file_name.push_str("Off"),
+                        ClipOf_O_D::Defense => out_file_name.push_str("Def"),
+                    }
+                }
+                out_file_name = out_file_name + "." + extension;
+                let out_file_path = clips_dir_path.join(out_file_name);
+
+                assert!(loop_start >= 0 && loop_end > loop_start);
+
+                let start = loop_start as f32 / 1000.0;
+                let end = loop_end as f32 / 1000.0;
+                let duration = end - start;
+
+                let child_proc = Command::new("ffmpeg")
+                    .arg("-ss")
+                    .arg(format!("{}", start))
+                    .arg("-i")
+                    .arg(path)
+                    .arg("-t")
+                    .arg(format!("{}", duration))
+                    .arg("-c")
+                    .arg("copy")
+                    .arg(out_file_path)
+                    .spawn()
+                    .expect("failed to execute vlc app");
+
+                println!("command executed: {:?}", child_proc);
+
+                loop_start = -1;
+                loop_end = -1;
+            }
             Action::StartLoop => {
                 match mdp.get_time() {
                     Some(start) => {
@@ -255,43 +285,6 @@ fn main() {
                     None => println!("error getting time")
                 }
                 println!("set loop start at {:?}", loop_start)
-            }
-            Action::CutCurrentLoop => {
-                clips.insert(loop_start);
-                println!("cutting from {:?} to {:?}...", loop_start, loop_end);
-                let out_file_name =  loop_start.to_string() + "_" + path;
-                let vlc_output_arg = ":sout=#file{dst=".to_owned() + &out_file_name + "}";
-
-                debug_assert!(loop_start >= 0 && loop_end > loop_start);
-
-                let start = loop_start as f32 / 1000.0;
-                let end = loop_end as f32 / 1000.0;
-                let duration = end - start;
-
-                /*let cmd_args = format!("-ss {:?} -i {} -to {:?} -c copy /home/oliver/Desktop/rust-vlc/{}",
-                                  start,
-                                  path,
-                                  end,
-                                  out_file_name);*/
-                let cmd_args = format!("{} --start-time {:?} --stop-time {:?} {} :no-sout-rtp-sap :no-sout-standard-sap :sout-keep", path, start, end, vlc_output_arg);
-                //println!("my vlc command: {:?}", cmd_args);
-
-
-
-                let child_proc = Command::new("ffmpeg")
-                    .arg("-ss")
-                    .arg(format!("{}", start))
-                    .arg("-i")
-                    .arg(path)
-                    .arg("-t")
-                    .arg(format!("{}", duration))
-                    .arg("-c")
-                    .arg("copy")
-                    .arg(out_file_name)
-                    .spawn()
-                    .expect("failed to execute vlc app");
-
-                println!("command executed: {:?}", child_proc);
             }
 
             Action::PreviousClip => {
@@ -356,18 +349,13 @@ fn main() {
                 }
                 println!("set loop end at {:?}", loop_end);
                 mdp.set_time(loop_start);
+                //check_loop_end(&tx, &mdp, loop_start, loop_end);
             }
-
-            /*Action::CheckLoopEnd(pos) => {
-                if loop_end != -1 && pos >= loop_end {
-                    mdp.set_time(loop_start);
-                }
-            }*/
 
             Action::Stop |
             Action::NextMedia => {
                 path = media_iter.next().unwrap();
-                let md = load_media(&instance, path, &tx);
+                md = load_media(&instance, path, &tx);
                 mdp.set_media(&md);
                 mdp.play();
             },
