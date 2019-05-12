@@ -66,7 +66,7 @@ deploy_script:
 
     cargo build --target %TARGET% --release
 
-    bash deploy.sh target/release/VideoAnalysisController.exe VideoAnalysisController.exe "VideoAnalysisController for Windows" $TOKEN
+    bash deploy.sh target/%TARGET%/release/VideoAnalysisController.exe VideoAnalysisController.exe "VideoAnalysisController for Windows" $TOKEN
 
 cache:
   - C:\Users\appveyor\.cargo\registry
