@@ -16,7 +16,7 @@ environment:
     SECURE_GITHUB_TOKEN:
       secure: yf7Him/R+dJ/gKfZR+Hqc3cwuZVQMWOuR1WZ9XuMwmkWyQD6yDIqUaFIBzcr0oEW
     APPVEYOR_CACHE_SKIP_RESTORE: false
-    ENABLE_REMOTE_DESKTOP: false
+    ENABLE_REMOTE_DESKTOP: true
 
   # TODO These are all the build jobs. Adjust as necessary. Comment out what you
   # don't need
@@ -68,9 +68,9 @@ deploy_script:
 
     cargo build --release
 
-    'C:\Program Files (x86)\Inno Setup 5\ISCC' innosetup.iss
-
     if($env:ENABLE_REMOTE_DESKTOP -eq $true) {$blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))}
+
+    'C:\Program Files (x86)\Inno Setup 5\ISCC' innosetup.iss
 
     bash deploy.sh VACsetup.exe VACSetup.exe "VideoAnalysisController for Windows" $TOKEN
 
