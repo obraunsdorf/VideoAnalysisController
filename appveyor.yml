@@ -11,22 +11,24 @@ environment:
     # TODO Update this to match the name of your project.
     CRATE_NAME: VideoAnalysisController
 
+    TARGET: x86_64-pc-windows-gnu
+
   # TODO These are all the build jobs. Adjust as necessary. Comment out what you
   # don't need
-  matrix:
+  #matrix:
     # MinGW
-    - TARGET: i686-pc-windows-gnu
-    - TARGET: x86_64-pc-windows-gnu
+    #- TARGET: i686-pc-windows-gnu
+    #- TARGET: x86_64-pc-windows-gnu
 
     # MSVC
-    - TARGET: i686-pc-windows-msvc
-    - TARGET: x86_64-pc-windows-msvc
+    #- TARGET: i686-pc-windows-msvc
+    #- TARGET: x86_64-pc-windows-msvc
 
     # Testing other channels
-    - TARGET: x86_64-pc-windows-gnu
-      RUST_VERSION: nightly
-    - TARGET: x86_64-pc-windows-msvc
-      RUST_VERSION: nightly
+    #- TARGET: x86_64-pc-windows-gnu
+    #  RUST_VERSION: nightly
+    #- TARGET: x86_64-pc-windows-msvc
+    #  RUST_VERSION: nightly
 
 init:
 - ps: >-
@@ -44,6 +46,10 @@ install:
   - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
   - rustc -Vv
   - cargo -V
+  - ps: $vlcdl = 'https://get.videolan.org/vlc/3.0.6/win64/vlc-3.0.6-win64.7z'
+  - ps: Invoke-WebRequest $vlcdl -OutFile "vlc.7z"
+  - 7z x vlc.7z
+  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
 
 # TODO This is the "test phase", tweak it as you see fit
 test_script:
