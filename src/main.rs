@@ -25,6 +25,7 @@ pub enum Action {
     DecreaseSpeed,
     StartLoop,
     EndLoop,
+    BreakLoop,
     CheckLoopEnd(f32),
     CutCurrentLoop(Option<ClipOf_O_D>),
     NextMedia,
@@ -350,6 +351,10 @@ fn main() {
                 println!("set loop end at {:?}", loop_end);
                 mdp.set_time(loop_start);
                 //check_loop_end(&tx, &mdp, loop_start, loop_end);
+            }
+
+            Action::BreakLoop => {
+                loop_end = -1;
             }
 
             Action::Stop |

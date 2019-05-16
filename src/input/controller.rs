@@ -2,6 +2,33 @@ use gilrs::{Gilrs, Button, Event, EventType};
 
 use super::super::Action as Action;
 use super::super::ClipOf_O_D as ClipOf_O_D;
+use std::collections::HashMap;
+
+fn long_press_map(btn: Button) -> Option<Action> {
+    match btn {
+        Button::DPadLeft => Some(Action::PreviousClip),
+        Button::West => Some(Action::BreakLoop),
+        Button::East => Some(Action::BreakLoop),
+        _ => None
+    }
+}
+
+fn short_press_map(btn: Button) -> Option<Action>{
+    match btn {
+        Button::Start => Some(Action::Exit),
+        Button::South => Some(Action::TogglePlayPause),
+        Button::West => Some(Action::StartLoop),
+        Button::East => Some(Action::EndLoop),
+        Button::North => Some(Action::CutCurrentLoop(None)),
+        Button::LeftTrigger => Some(Action::DecreaseSpeed),
+        Button::RightTrigger => Some(Action::IncreaseSpeed),
+        Button::DPadRight => Some(Action::NextClip),
+        Button::DPadLeft => Some(Action::RestartClip),
+        Button::DPadUp => Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))),
+        Button::DPadDown => Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense))),
+        _ => None
+    }
+}
 
 pub fn read_controller(tx: std::sync::mpsc::Sender<Action>) {
     let mut gilrs = Gilrs::new().unwrap();
@@ -11,42 +38,29 @@ pub fn read_controller(tx: std::sync::mpsc::Sender<Action>) {
         println!("{} is {:?}", gamepad.name(), gamepad.power_info());
     }
 
-    let mut last_DPadLeft_pressed= std::time::Instant::now();
+    let mut last_pressed = HashMap::new();
 
     loop {
-        // Examine new events
         while let Some(Event { id, event, time }) = gilrs.next_event() {
             println!("{:?} New event from {}: {:?}", time, id, event);
             match event {
                 EventType::ButtonPressed(btn, _) => {
-                    match btn {
-                        Button::Start => tx.send(Action::Exit).unwrap(),
-                        Button::South => tx.send(Action::TogglePlayPause).unwrap(),
-                        Button::West => tx.send(Action::StartLoop).unwrap(),
-                        Button::East => tx.send(Action::EndLoop).unwrap(),
-                        Button::North => tx.send(Action::CutCurrentLoop(None)).unwrap(),
-                        Button::LeftTrigger => tx.send(Action::DecreaseSpeed).unwrap(),
-                        Button::RightTrigger => tx.send(Action::IncreaseSpeed).unwrap(),
-                        Button::DPadRight => tx.send(Action::NextClip).unwrap(),
-                        Button::DPadLeft => {
-                            last_DPadLeft_pressed = std::time::Instant::now();
-                        },
-                        Button::DPadUp => tx.send(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))).unwrap(),
-                        Button::DPadDown => tx.send(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense))).unwrap(),
-                        _ => {}
-                    }
-                }
+                    last_pressed.insert(btn, std::time::Instant::now());
+                },
 
                 EventType::ButtonReleased(btn, _) => {
-                    match btn {
-                        Button::DPadLeft => {
-                            if last_DPadLeft_pressed.elapsed() > std::time::Duration::from_millis(500) {
-                                tx.send(Action::PreviousClip).unwrap();
-                            } else {
-                                tx.send(Action::RestartClip).unwrap();
+                    if let Some(lp) = last_pressed.get(&btn) {
+                        if lp.elapsed() > std::time::Duration::from_millis(500) {
+                            if let Some(action) = long_press_map(btn) {
+                                tx.send(action).unwrap();
                             }
-                        },
-                        _ => {}
+                        } else {
+                            if let Some(action) = short_press_map(btn) {
+                                tx.send(action).unwrap();
+                            }
+                        }
+                    } else {
+                        println!("unexpected error");
                     }
                 }
 
