@@ -42,7 +42,7 @@ pub enum Action {
 static MAX_SPEED: f32 = 16.0;
 static BREAKPOINT: f32 = 0.5;
 
-const VIDEO_EXTENSIONS: &[&str] = &["MOV", "MPEG"];
+const VIDEO_EXTENSIONS: &[&str] = &["MOV", "MPEG", "MP4"];
 
 
 /*fn check_loop_end(tx_orig: &std::sync::mpsc::Sender<Action>,
