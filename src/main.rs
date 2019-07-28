@@ -162,9 +162,10 @@ fn main() {
         if loop_end != -1 && mdp.get_time().unwrap() >= loop_end {
             mdp.set_time(loop_start);
         }
-        let result = rx.try_recv();
+        let result = rx.recv();
         if result.is_err() {
-            continue;
+            println!("VAC Error: connection to controller or keyboard has been lost.");
+            break;
         }
         let action = result.unwrap();
         match action {
