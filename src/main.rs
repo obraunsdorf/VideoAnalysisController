@@ -34,6 +34,7 @@ pub enum Action {
     NextClip,
     PreviousClip,
     RestartClip,
+    Zoom(f32),
     Stop,
     Exit,
 }
@@ -157,6 +158,7 @@ fn main() {
     let mut clipcount = 0;
 
     let mut clips: BTreeSet<i64> = BTreeSet::new();
+    let mut cur_zoom: f32 = 0.0;
 
     loop {
         if loop_end != -1 && mdp.get_time().unwrap() >= loop_end {
@@ -380,6 +382,16 @@ fn main() {
                     }
                     previous = media;
                 }
+            }
+
+            Action::Zoom(pos) => {
+                if pos <= 0.0 {
+                    cur_zoom = 0.0;
+                } else {
+                    cur_zoom = cur_zoom + 1.0;
+                }
+                println!("setting zoom to {:?}", cur_zoom);
+                mdp.set_scale(cur_zoom);
             }
 
             Action::RestartMedia => {
