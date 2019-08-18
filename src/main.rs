@@ -6,7 +6,7 @@ use std::process::Command;
 use std::string::{ToString, String};
 use std::collections::btree_set::BTreeSet;
 
-use vlc::{Instance, Media, MediaPlayer, Event, EventType, State, MediaPlayerVideoEx};
+use vlc::{Instance, Media, MediaPlayer, Event, EventType, State, MediaPlayerVideoEx, MarqueeOption};
 
 
 mod input;
@@ -130,11 +130,12 @@ fn main() {
 
     input::spawn_input_threads_with_sender(&tx);
 
-    let instance = Instance::new().unwrap();
-    /*let vlc_args: Vec<String> = vec![
-        String::from("--verbose=2")
+    //let instance = Instance::new().unwrap();
+    let vlc_args: Vec<String> = vec![
+        String::from("--verbose=2"),
+        String::from("--sub-filter=marq")
     ];
-    let instance = Instance::with_args(Some(vlc_args)).unwrap();*/
+    let instance = Instance::with_args(Some(vlc_args)).unwrap();
     //instance.add_intf("qt");
 
 
@@ -365,6 +366,16 @@ fn main() {
                 path = media_iter.next().unwrap();
                 md = load_media(&instance, path, &tx);
                 mdp.set_media(&md);
+
+                println!("showing text =) ");
+                let mut marquee_option: MarqueeOption = Default::default();
+                marquee_option.x = 10;
+                marquee_option.y = 10;
+                marquee_option.opacity = 50;
+                marquee_option.size = 40;
+                marquee_option.timeout = 4000;
+                marquee_option.color = 0xffffff;
+                mdp.show_marqee_text(&marquee_option, "hallo");
                 mdp.play();
             },
 
