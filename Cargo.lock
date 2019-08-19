@@ -5,7 +5,7 @@ name = "VideoAnalysisController"
 version = "0.1.0"
 dependencies = [
  "gilrs 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "vlc-rs 0.3.0 (git+https://github.com/garkimasera/vlc-rs)",
+ "vlc-rs 0.3.0 (git+https://github.com/obraunsdorf/vlc-rs)",
 ]
 
 [[package]]
@@ -311,7 +311,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "vlc-rs"
 version = "0.3.0"
-source = "git+https://github.com/garkimasera/vlc-rs#83589234c7b61d2c2b2840c512ac210d912b8fb6"
+source = "git+https://github.com/obraunsdorf/vlc-rs#ac9db5c91113cdb77ad1489c41cec36f54b6c66e"
 dependencies = [
  "libc 0.2.54 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -428,7 +428,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fc72304796d0818e357ead4e000d19c9c174ab23dc11093ac919054d20a6a7fc"
 "checksum uuid 0.7.4 (registry+https://github.com/rust-lang/crates.io-index)" = "90dbc611eb48397705a6b0f6e917da23ae517e4d127123d2cf7674206627d32a"
 "checksum vec_map 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "05c78687fb1a80548ae3250346c3db86a80a7cdd77bda190189f2d0a0987c81a"
-"checksum vlc-rs 0.3.0 (git+https://github.com/garkimasera/vlc-rs)" = "<none>"
+"checksum vlc-rs 0.3.0 (git+https://github.com/obraunsdorf/vlc-rs)" = "<none>"
 "checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 "checksum wasm-bindgen 0.2.43 (registry+https://github.com/rust-lang/crates.io-index)" = "546e4ab1bf7f9a3532d21472efd72d01a23f55abd885c60b165f393394dbad95"
 "checksum wasm-bindgen-backend 0.2.43 (registry+https://github.com/rust-lang/crates.io-index)" = "7b84bedebfd6ae3522cce59dec6b52ee6c53ceeaae8541668c15b9f42df8ecab"
