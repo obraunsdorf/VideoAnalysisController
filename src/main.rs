@@ -160,7 +160,12 @@ fn main() {
     let mut clipcount = 0;
 
     let mut clips: BTreeSet<i64> = BTreeSet::new();
-    let mut cur_zoom: f32 = 0.0;
+
+    let mut marquee_option: MarqueeOption = Default::default();
+    marquee_option.position = Some(0);
+    marquee_option.opacity = Some(70);
+    marquee_option.timeout = Some(1000);
+
 
     loop {
         if loop_end != -1 && mdp.get_time().unwrap() >= loop_end {
@@ -247,10 +252,17 @@ fn main() {
                     }
                 }
                 let mut out_file_name = loop_start.to_string();
+                let mut user_hint = "";
                 if let Some(off_def) = o_d_option {
                     match off_def {
-                        ClipOf_O_D::Offense => out_file_name.push_str("Off"),
-                        ClipOf_O_D::Defense => out_file_name.push_str("Def"),
+                        ClipOf_O_D::Offense => {
+                            out_file_name.push_str("Off");
+                            user_hint = " as Offense"
+                        },
+                        ClipOf_O_D::Defense => {
+                            out_file_name.push_str("Def");
+                            user_hint = " as Defense"
+                        },
                     }
                 }
                 out_file_name = out_file_name + "." + extension;
@@ -262,7 +274,9 @@ fn main() {
                 let end = loop_end as f32 / 1000.0;
                 let duration = end - start;
 
-                let child_proc = Command::new("ffmpeg")
+
+
+                if let Ok(child_proc) = Command::new("ffmpeg")
                     .arg("-ss")
                     .arg(format!("{}", start))
                     .arg("-i")
@@ -273,9 +287,13 @@ fn main() {
                     .arg("copy")
                     .arg(out_file_path)
                     .spawn()
-                    .expect("failed to execute vlc app");
-
-                println!("command executed: {:?}", child_proc);
+                {
+                        let msg = "cut clip".to_owned() + user_hint;
+                        mdp.show_marqee_text(&msg, &marquee_option);
+                        println!("command executed: {:?}", child_proc);
+                } else {
+                    mdp.show_marqee_text("error on creating clip", &marquee_option);
+                }
 
                 loop_start = -1;
                 loop_end = -1;
@@ -290,6 +308,7 @@ fn main() {
                     }
                     None => println!("error getting time")
                 }
+                mdp.show_marqee_text("start loop", &marquee_option);
                 println!("set loop start at {:?}", loop_start)
             }
 
@@ -354,6 +373,7 @@ fn main() {
                     None => println!("error getting time")
                 }
                 println!("set loop end at {:?}", loop_end);
+                mdp.show_marqee_text("end loop", &marquee_option);
                 mdp.set_time(loop_start);
                 //check_loop_end(&tx, &mdp, loop_start, loop_end);
             }
@@ -367,16 +387,6 @@ fn main() {
                 path = media_iter.next().unwrap();
                 md = load_media(&instance, path, &tx);
                 mdp.set_media(&md);
-
-                println!("showing text =) ");
-                let mut marquee_option: MarqueeOption = Default::default();
-                marquee_option.x = 10;
-                marquee_option.y = 10;
-                marquee_option.opacity = 50;
-                marquee_option.size = 40;
-                marquee_option.timeout = 4000;
-                marquee_option.color = 0xffffff;
-                mdp.show_marqee_text(&marquee_option, "hallo");
                 mdp.play();
             },
 
@@ -394,16 +404,6 @@ fn main() {
                     }
                     previous = media;
                 }
-            }
-
-            Action::Zoom(pos) => {
-                if pos <= 0.0 {
-                    cur_zoom = 0.0;
-                } else {
-                    cur_zoom = cur_zoom + 1.0;
-                }
-                println!("setting zoom to {:?}", cur_zoom);
-                mdp.set_scale(cur_zoom);
             }
 
             Action::RestartMedia => {
