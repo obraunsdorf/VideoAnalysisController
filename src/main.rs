@@ -132,8 +132,9 @@ fn main() {
 
     //let instance = Instance::new().unwrap();
     let vlc_args: Vec<String> = vec![
-        String::from("--verbose=2"),
-        String::from("--sub-filter=marq")
+        String::from("--verbose=1"),
+        String::from("--file-logging"),
+        String::from("--logfile=libvlc.log"),
     ];
     let instance = Instance::with_args(Some(vlc_args)).unwrap();
     //instance.add_intf("qt");
