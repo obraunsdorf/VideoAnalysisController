@@ -1,7 +1,7 @@
 #![feature(duration_float)]
 
 
-use std::sync::mpsc::{channel};
+use std::sync::mpsc::channel;
 use std::process::Command;
 use std::string::{ToString, String};
 use std::collections::btree_set::BTreeSet;
@@ -97,6 +97,90 @@ fn load_media(vlc_instance: &vlc::Instance, path: &Path, tx_0: &std::sync::mpsc:
 }
 
 
+struct Zoom<'player> {
+    mdp: &'player vlc::MediaPlayer,
+    max_width: u32,
+    max_height: u32,
+    zoom_width: u32,
+    zoom_height: u32,
+    zoom_posx: u32,
+    zoom_posy: u32
+}
+pub enum ZoomUpdateKind {
+    WindowWidth(i16), // zoom to the width of ...
+    PosX(i16), // move the zoom window along horizontal axis by ...
+    PosY(i16), // move the zoom window along vertical axis by ...
+}
+
+impl<'player> Zoom<'player> {
+
+    pub fn new(mdp: & vlc::MediaPlayer, resolution: (u32, u32)) -> Zoom {
+        let (max_width, max_heigth) = resolution;
+        return Zoom {
+            mdp,
+            max_width,
+            max_height: max_heigth,
+            zoom_width: max_width,
+            zoom_height: max_heigth,
+            zoom_posx : 0,
+            zoom_posy : 0
+        }
+    }
+
+    pub fn updateZoom(&mut self, kind: ZoomUpdateKind) {
+        if let Ok(geometry_string) = self.mdp.get_video_crop_geometry() {
+            println!("geometry string = {:?}", geometry_string);
+        }
+
+        if let ZoomUpdateKind::WindowWidth(delta) = kind {
+            let aspect_ratio = 16.0 / 9.0;
+            let zoom_delta = delta * 100; //TODO: convert good
+            println!("current zoom_widht={:?}, zoom delta={:?}", self.zoom_width, zoom_delta);
+            if zoom_delta as i32 > self.zoom_width as i32  {
+
+            } else {
+                self.zoom_width = self.max_width.min((self.zoom_width as i32 - zoom_delta as i32) as u32);
+            }
+            self.zoom_height = (self.zoom_width as f32 / aspect_ratio) as u32;
+        }
+
+        let max_move_x : u32 = self. max_width as u32 - self.zoom_width as u32;
+        let max_move_y : u32 = self.max_height as u32 - self.zoom_height as u32;
+
+        match kind {
+            ZoomUpdateKind::PosX(move_delta) => {
+                if (self.zoom_posx as i32 + move_delta as i32) < 0 {
+                    // leave zoom_posx unmodified
+                } else {
+                    self.zoom_posx = max_move_x.min((self.zoom_posx as i32 + move_delta as i32) as u32)
+                }
+            }
+
+            ZoomUpdateKind::PosY(move_delta) => {
+                if (self.zoom_posy as i32 + move_delta as i32) < 0 {
+                    // leave zoom_posy unmodified
+                } else {
+                    self.zoom_posy = max_move_y.min((self.zoom_posy as i32 + move_delta as i32) as u32)
+                }
+            }
+
+            ZoomUpdateKind::WindowWidth(_) => {}
+        };
+
+        let geometry_string = format!("{:?}x{:?}+{:?}+{:?}", self.zoom_width, self.zoom_height, self.zoom_posy, self.zoom_posx);
+        match self.mdp.set_video_crop_geometry(&geometry_string) {
+            Err(e) => println!("error setting geometry: {:?}", e),
+            _ => {}
+        }
+
+        if let Ok(geometry_string) = self.mdp.get_video_crop_geometry() {
+            println!("geometry string = {:?}", geometry_string);
+        }
+        println!("after x={:?} y={:?}", self.zoom_posx, self.zoom_posy);
+    }
+
+}
+
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -171,11 +255,7 @@ fn main() {
         max_width = width;
         max_height = height;
     }
-    let mut cur_zoom: f32 = 0.0;
-    let mut zoom_width: u32 = max_width;
-    let mut zoom_height: u32 = max_height;
-    let mut zoom_posx: u32 = 0;
-    let mut zoom_posy: u32 = 0;
+    let mut zoom = Zoom::new(&mdp, (max_width, max_height));
 
     loop {
         if loop_end != -1 && mdp.get_time().unwrap() >= loop_end {
@@ -381,7 +461,7 @@ fn main() {
                 md = load_media(&instance, path, &tx);
                 mdp.set_media(&md);
                 mdp.play();
-            },
+            }
 
             Action::PreviousMedia => {
                 println!("playing media previous to {:?}", path);
@@ -400,41 +480,15 @@ fn main() {
             }
 
             Action::MoveZoom(axis, pos) => {
-                println!("-------------------------------------------------------------------------------------");
-                println!("before x={:?} y={:?}", zoom_posx, zoom_posy);
-                zoom_width = 960;
-                zoom_height = 540;
-                let max_move_x = max_width - zoom_width;
-                let max_move_y = max_height - zoom_height;
+                let move_delta =  (pos * 100.0) as i16;
                 match axis {
                     MoveZoomAxis::Horizontal => {
-                        let move_delta =  pos * 100.0;
-                        if zoom_posx as f32 + move_delta < 0.0 {
-                            // leave zoom_posx unmodified
-                        } else {
-                            zoom_posx = max_move_x.min((zoom_posx as f32 + move_delta) as u32)
-                        }
-                    },
-
+                        zoom.updateZoom(ZoomUpdateKind::PosX(move_delta))
+                    }
                     MoveZoomAxis::Vertical => {
-                        let move_delta =  (-pos * 100.0);
-                        if zoom_posy as f32 + move_delta < 0.0 {
-                            // leave zoom_posy unmodified
-                        } else {
-                            zoom_posy = max_move_y.min((zoom_posy as f32 + move_delta) as u32)
-                        }
-                    },
+                        zoom.updateZoom(ZoomUpdateKind::PosY(move_delta))
+                    }
                 }
-
-                let geometry_string = format!("{:?}x{:?}+{:?}+{:?}", zoom_width, zoom_height, zoom_posy, zoom_posx);
-                match mdp.set_video_crop_geometry(&geometry_string) {
-                    Err(e) => println!("error setting geometry: {:?}", e),
-                    _ => {}
-                }
-                if let Ok(geometry_string) = mdp.get_video_crop_geometry() {
-                    println!("geometry string = {:?}", geometry_string);
-                }
-                println!("after x={:?} y={:?}", zoom_posx, zoom_posy);
             }
 
             Action::Zoom(pos) => {
@@ -447,27 +501,8 @@ fn main() {
                 println!("setting zoom to {:?}", cur_zoom);
                 mdp.set_scale(cur_zoom);*/
 
-                if let Ok(geometry_string) = mdp.get_video_crop_geometry() {
-                    println!("geometry string = {:?}", geometry_string);
-                }
-
-                let aspect_ratio = 16.0 / 9.0;
-                let zoom_delta = (pos * 100.0) as i32;
-                println!("current zoom_widht={:?}, zoom delta={:?}", zoom_width, zoom_delta);
-                if zoom_delta as i64 > zoom_width as i64 {
-
-                } else {
-                    zoom_width = max_width.min((zoom_width as i32 - zoom_delta) as u32);
-                }
-
-                println!("new_zoom_width = {:?}", zoom_width);
-
-                zoom_height = (zoom_width as f32 / aspect_ratio) as u32;
-                let geometry_string = format!("{:?}x{:?}+{:?}+{:?}", zoom_width, zoom_height, zoom_posy, zoom_posx);
-                match mdp.set_video_crop_geometry(&geometry_string) {
-                    Err(e) => println!("error setting geometry: {:?}", e),
-                    _ => {}
-                }
+                let zoom_delta = (pos * 100.0) as i16;
+                zoom.updateZoom(ZoomUpdateKind::WindowWidth(zoom_delta));
             }
 
             Action::RestartMedia => {
@@ -477,7 +512,7 @@ fn main() {
 
             Action::Exit => {
                 break;
-            },
+            }
             _ => {}
         };
     }
