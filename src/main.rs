@@ -17,6 +17,11 @@ pub enum ClipOf_O_D {
     Defense,
 }
 
+pub enum MoveZoomAxis {
+    Horizontal,
+    Vertical,
+}
+
 pub enum Action {
     TogglePlayPause,
     Rewind(f32),
@@ -35,6 +40,7 @@ pub enum Action {
     PreviousClip,
     RestartClip,
     Zoom(f32),
+    MoveZoom(MoveZoomAxis, f32),
     Stop,
     Exit,
 }
@@ -58,7 +64,7 @@ const VIDEO_EXTENSIONS: &[&str] = &["MOV", "MPEG", "MP4"];
 }*/
 
 fn load_media(vlc_instance: &vlc::Instance, path: &Path, tx_0: &std::sync::mpsc::Sender<Action>)
-    -> Media {
+              -> Media {
     //let md = Media::new_location(&instance, "https://www.youtube.com/watch?v=M3Q8rIgveO0").unwrap();
     let tx = tx_0.clone();
     let tx_2 = tx_0.clone();
@@ -108,7 +114,7 @@ fn main() {
     for arg in args[1..].iter() {
         let p = PathBuf::from(arg);
         if p.is_dir() {
-            for dir_entry_result in p.read_dir().unwrap(){
+            for dir_entry_result in p.read_dir().unwrap() {
                 if let Ok(directory_entry) = dir_entry_result {
                     if let Some(s) = directory_entry.path().extension() {
                         if let Some(extension) = s.to_str() {
@@ -158,7 +164,18 @@ fn main() {
     let mut clipcount = 0;
 
     let mut clips: BTreeSet<i64> = BTreeSet::new();
+
+    let mut max_width: u32 = 1920;
+    let mut max_height: u32 = 1080;
+    if let Some((width, height)) = mdp.get_size(0) {
+        max_width = width;
+        max_height = height;
+    }
     let mut cur_zoom: f32 = 0.0;
+    let mut zoom_width: u32 = max_width;
+    let mut zoom_height: u32 = max_height;
+    let mut zoom_posx: u32 = 0;
+    let mut zoom_posy: u32 = 0;
 
     loop {
         if loop_end != -1 && mdp.get_time().unwrap() >= loop_end {
@@ -207,13 +224,12 @@ fn main() {
                 let cur_time = mdp.get_time().unwrap();
                 mdp.set_time(cur_time + speed as i64 * 10);
                 //mdp.pause();*/
-                let new_time = mdp.get_time().unwrap() + (speed*1000.0) as i64;
+                let new_time = mdp.get_time().unwrap() + (speed * 1000.0) as i64;
                 mdp.set_time(new_time);
-
             }
 
             Action::Rewind(speed) => {
-                let new_time = mdp.get_time().unwrap() - (speed*1000.0) as i64;
+                let new_time = mdp.get_time().unwrap() - (speed * 1000.0) as i64;
                 mdp.set_time(new_time);
             }
 
@@ -221,7 +237,6 @@ fn main() {
                 let current_speed = mdp.get_rate();
                 mdp.set_rate(current_speed + 0.1);
             }
-
 
             Action::DecreaseSpeed => {
                 let current_speed = mdp.get_rate();
@@ -384,14 +399,75 @@ fn main() {
                 }
             }
 
+            Action::MoveZoom(axis, pos) => {
+                println!("-------------------------------------------------------------------------------------");
+                println!("before x={:?} y={:?}", zoom_posx, zoom_posy);
+                zoom_width = 960;
+                zoom_height = 540;
+                let max_move_x = max_width - zoom_width;
+                let max_move_y = max_height - zoom_height;
+                match axis {
+                    MoveZoomAxis::Horizontal => {
+                        let move_delta =  pos * 100.0;
+                        if zoom_posx as f32 + move_delta < 0.0 {
+                            // leave zoom_posx unmodified
+                        } else {
+                            zoom_posx = max_move_x.min((zoom_posx as f32 + move_delta) as u32)
+                        }
+                    },
+
+                    MoveZoomAxis::Vertical => {
+                        let move_delta =  (-pos * 100.0);
+                        if zoom_posy as f32 + move_delta < 0.0 {
+                            // leave zoom_posy unmodified
+                        } else {
+                            zoom_posy = max_move_y.min((zoom_posy as f32 + move_delta) as u32)
+                        }
+                    },
+                }
+
+                let geometry_string = format!("{:?}x{:?}+{:?}+{:?}", zoom_width, zoom_height, zoom_posy, zoom_posx);
+                match mdp.set_video_crop_geometry(&geometry_string) {
+                    Err(e) => println!("error setting geometry: {:?}", e),
+                    _ => {}
+                }
+                if let Ok(geometry_string) = mdp.get_video_crop_geometry() {
+                    println!("geometry string = {:?}", geometry_string);
+                }
+                println!("after x={:?} y={:?}", zoom_posx, zoom_posy);
+            }
+
             Action::Zoom(pos) => {
+                /*let zoomfactor: f32 = 0.1;
                 if pos <= 0.0 {
-                    cur_zoom = 0.0;
+                    cur_zoom = cur_zoom - zoomfactor;
                 } else {
-                    cur_zoom = cur_zoom + 1.0;
+                    cur_zoom = cur_zoom + zoomfactor;
                 }
                 println!("setting zoom to {:?}", cur_zoom);
-                mdp.set_scale(cur_zoom);
+                mdp.set_scale(cur_zoom);*/
+
+                if let Ok(geometry_string) = mdp.get_video_crop_geometry() {
+                    println!("geometry string = {:?}", geometry_string);
+                }
+
+                let aspect_ratio = 16.0 / 9.0;
+                let zoom_delta = (pos * 100.0) as i32;
+                println!("current zoom_widht={:?}, zoom delta={:?}", zoom_width, zoom_delta);
+                if zoom_delta as i64 > zoom_width as i64 {
+
+                } else {
+                    zoom_width = max_width.min((zoom_width as i32 - zoom_delta) as u32);
+                }
+
+                println!("new_zoom_width = {:?}", zoom_width);
+
+                zoom_height = (zoom_width as f32 / aspect_ratio) as u32;
+                let geometry_string = format!("{:?}x{:?}+{:?}+{:?}", zoom_width, zoom_height, zoom_posy, zoom_posx);
+                match mdp.set_video_crop_geometry(&geometry_string) {
+                    Err(e) => println!("error setting geometry: {:?}", e),
+                    _ => {}
+                }
             }
 
             Action::RestartMedia => {

@@ -3,6 +3,7 @@ use gilrs::{Gilrs, Button, Event, EventType};
 use super::super::Action as Action;
 use super::super::ClipOf_O_D as ClipOf_O_D;
 use std::collections::HashMap;
+use crate::MoveZoomAxis;
 
 fn long_press_map(btn: Button) -> Option<Action> {
     match btn {
@@ -39,6 +40,7 @@ pub fn read_controller(tx: std::sync::mpsc::Sender<Action>) {
     }
 
     let mut last_pressed = HashMap::new();
+    let mut last_zoom: f32 = 0.0;
 
     loop {
         while let Some(Event { id, event, time }) = gilrs.next_event() {
@@ -76,7 +78,24 @@ pub fn read_controller(tx: std::sync::mpsc::Sender<Action>) {
 
                 EventType::AxisChanged(axis, pos, _code) => {
                     match axis {
-                        RightStickX=> tx.send(Action::Zoom(pos)).unwrap(),
+                        /*RightStickX=> {
+                            let delta = pos-last_zoom;
+                            if delta.abs() > 0.1 {
+                                tx.send(Action::Zoom(pos)).unwrap();
+                            }
+                        },*/
+
+                        gilrs::Axis::RightStickX => {
+                            tx.send(Action::Zoom(pos)).unwrap();
+                        }
+
+                        gilrs::Axis::LeftStickX => {
+                            tx.send(Action::MoveZoom(MoveZoomAxis::Horizontal, pos)).unwrap();
+                        }
+
+                        gilrs::Axis::LeftStickY=> {
+                            tx.send(Action::MoveZoom(MoveZoomAxis::Vertical, pos)).unwrap();
+                        }
 
                         _ => {}
                     }
