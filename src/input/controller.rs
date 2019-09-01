@@ -74,13 +74,6 @@ pub fn read_controller(tx: std::sync::mpsc::Sender<Action>) {
                     }
                 }
 
-                EventType::AxisChanged(axis, pos, _code) => {
-                    match axis {
-                        RightStickX=> tx.send(Action::Zoom(pos)).unwrap(),
-
-                        _ => {}
-                    }
-                }
                 _ => {}
             };
         }

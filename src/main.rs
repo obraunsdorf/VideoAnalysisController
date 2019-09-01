@@ -26,7 +26,7 @@ pub enum Action {
     StartLoop,
     EndLoop,
     BreakLoop,
-    CheckLoopEnd(f32),
+    //CheckLoopEnd(f32),
     CutCurrentLoop(Option<ClipOf_O_D>),
     NextMedia,
     PreviousMedia,
@@ -34,7 +34,6 @@ pub enum Action {
     NextClip,
     PreviousClip,
     RestartClip,
-    Zoom(f32),
     Stop,
     Exit,
 }
@@ -47,14 +46,31 @@ const VIDEO_EXTENSIONS: &[&str] = &["MOV", "MPEG", "MP4"];
 
 
 /*fn check_loop_end(tx_orig: &std::sync::mpsc::Sender<Action>,
-                  mdp: &MediaPlayer,
+                  mdp: MediaPlayer,
                   loop_start: i64,
                   loop_end: i64
 ) {
     let tx = tx_orig.clone();
     std::thread::spawn(|| {
-        loop
-    })
+        let mut error_count = 0;
+        loop{
+            if let Some(time) = mdp.get_time() {
+                if time >= loop_end  {
+                    tx.send(Action::RestartClip);
+                    return;
+                }
+            } else {
+                error_count = error_count + 1;
+            }
+
+            if error_count >= 3 {
+                println!("error getting time while checking for loop end");
+                return;
+            }
+
+        }
+
+    });
 }*/
 
 fn load_media(vlc_instance: &vlc::Instance, path: &Path, tx_0: &std::sync::mpsc::Sender<Action>)
@@ -77,7 +93,8 @@ fn load_media(vlc_instance: &vlc::Instance, path: &Path, tx_0: &std::sync::mpsc:
             _ => (),
         }
     });
-    let _ = em.attach(EventType::MediaPlayerPositionChanged, move |e, _| {
+
+    /*let _ = em.attach(EventType::MediaPlayerPositionChanged, move |e, _| {
         match e {
             Event::MediaPlayerPositionChanged(pos) => {
                 println!("position changed, new pos: {:?}", pos);
@@ -85,7 +102,7 @@ fn load_media(vlc_instance: &vlc::Instance, path: &Path, tx_0: &std::sync::mpsc:
             }
             _ => (),
         }
-    });
+    });*/
 
     return md;
 }
@@ -171,10 +188,11 @@ fn main() {
         if loop_end != -1 && mdp.get_time().unwrap() >= loop_end {
             mdp.set_time(loop_start);
         }
-        let result = rx.recv();
+        let result = rx.try_recv();
         if result.is_err() {
-            println!("VAC Error: connection to controller or keyboard has been lost.");
-            break;
+            continue;
+            //println!("VAC Error: connection to controller or keyboard has been lost.");
+            //break;
         }
         let action = result.unwrap();
         match action {
@@ -375,10 +393,23 @@ fn main() {
                 println!("set loop end at {:?}", loop_end);
                 mdp.show_marqee_text("end loop", &marquee_option);
                 mdp.set_time(loop_start);
-                //check_loop_end(&tx, &mdp, loop_start, loop_end);
+                //check_loop_end(&tx, mdp, loop_start, loop_end);
             }
 
+           /* Action::CheckLoopEnd(pos) => {
+                let duration = mdp.get_media().unwrap().duration().unwrap();
+                let cur_time = (duration as f64 * pos as f64) as i64;
+                println!("checking loop end: cur_time={:?} loop_end={:?}", cur_time, loop_end);
+                if cur_time >= loop_end {
+                    println!("yes");
+                    tx.send(Action::PreviousClip);
+                } else {
+                    println!("no");
+                }
+            }*/
+
             Action::BreakLoop => {
+                mdp.show_marqee_text("break loop", &marquee_option);
                 loop_end = -1;
             }
 
@@ -414,7 +445,6 @@ fn main() {
             Action::Exit => {
                 break;
             },
-            _ => {}
         };
     }
     println!("exiting");
