@@ -15,11 +15,13 @@ VAC is primarily dedicated to the flag football community as most of the teams (
 VideoAnalysisController is distributed for Windows (only 64-Bit at the moment), but can also be built for Linux.
 
 
-## How to install   
+## How to install
+Installation files for VAC are currently only provided **for 64-Bit Windows** (tested on Windows 10). Follow the instructions below, to install VAC for Windows.
 1. Download the latest release of the Windows Setup at https://github.com/obraunsdorf/VideoAnalysisController/releases
-2. Install VLC Media Player 64-Bit: https://get.videolan.org/vlc/3.0.6/win64/vlc-3.0.6-win64.exe
+2. Install VLC Media Player version 3.0.6 for 64-Bit Windows: https://get.videolan.org/vlc/3.0.6/win64/vlc-3.0.6-win64.exe
 3. In Windows' system settings: modify the PATH environment variable to add the VLC installation directory (most likely "C:\Program Files\VideoLAN\VLC") 
 
+**For Linux and MacOS** you can build the software yourself or submit an issue here at Github if you need really need pre-compiled installation files and cannot build VAC on your own for your OS.
 ## How to use
  - To start a video in VAC, right-click on the video -> open with -> select the VAC executable (most likely C:\Program Files\VideoAnalysisController\VideoAnalysisController.exe)
 
