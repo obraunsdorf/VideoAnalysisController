@@ -5,6 +5,7 @@ name = "VideoAnalysisController"
 version = "0.1.0"
 dependencies = [
  "gilrs 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "multiinput 0.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "vlc-rs 0.3.0 (git+https://github.com/obraunsdorf/vlc-rs)",
 ]
 
@@ -135,6 +136,14 @@ version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.2.54 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "multiinput"
+version = "0.0.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "winapi 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -407,6 +416,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum libudev-sys 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "3c8469b4a23b962c1396b9b451dda50ef5b283e8dd309d69033475fa9b334324"
 "checksum log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)" = "c84ec4b527950aa83a329754b01dbe3f58361d1c5efacd1f6d68c494d08a17c6"
 "checksum mach 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "86dd2487cdfea56def77b88438a2c915fb45113c5319bfe7e14306ca4cd0b0e1"
+"checksum multiinput 0.0.15 (registry+https://github.com/rust-lang/crates.io-index)" = "e367677c77c427bd0fe1052554f5e546bbe257ee28d0951ab19124e0a6d8a2f1"
 "checksum nix 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d37e713a259ff641624b6cb20e3b12b2952313ba36b6823c0f16e6cfd9e5de17"
 "checksum pkg-config 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)" = "676e8eb2b1b4c9043511a9b7bea0915320d7e502b0a079fb03f9635a5252b18c"
 "checksum proc-macro2 0.4.29 (registry+https://github.com/rust-lang/crates.io-index)" = "64c827cea7a7ab30ce4593e5e04d7a11617ad6ece2fa230605a78b00ff965316"
