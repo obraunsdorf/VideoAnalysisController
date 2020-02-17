@@ -27,7 +27,7 @@ Installation files for VAC are currently only provided **for 64-Bit Windows** (t
 
  - To start multiple videos in one directory, open the windows command line and type 
 ```
-    "C:\Program Files\VideoAnalysisController\VideoAnalysisController.exe" Path\To\Directory
+"C:\Program Files\VideoAnalysisController\VideoAnalysisController.exe" Path\To\Directory
 ```
 
 
