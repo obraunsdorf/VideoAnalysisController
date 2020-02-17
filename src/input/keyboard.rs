@@ -16,6 +16,7 @@ fn get_action(key: &KeyId) -> Option<Action> {
         KeyId::Down => Some(Action::DecreaseSpeed),
         KeyId::T => Some(Action::StartLoop),
         KeyId::Z => Some(Action::EndLoop),
+        KeyId::B => Some(Action::BreakLoop),
 //'h' => Some(Action::CheckLoopEnd(f32)),
         KeyId::O => Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))),
         KeyId::D => Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense))),
