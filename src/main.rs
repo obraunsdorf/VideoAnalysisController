@@ -289,10 +289,7 @@ fn main() {
                 let s2 = path.to_str().unwrap().to_string() + "_condensed";
                 let condensed_dir_path = Path::new(s2.as_str());
                 std::fs::create_dir(&condensed_dir_path);
-                let result = ffmpeg::concat(
-                    clips_dir_path,
-                    condensed_dir_path.join("_all_.mp4").as_path(),
-                );
+                let result = ffmpeg::concat(clips_dir_path, condensed_dir_path);
                 let msg = if let Err(e) = result {
                     println!("{}", e);
                     "error concatenating"
