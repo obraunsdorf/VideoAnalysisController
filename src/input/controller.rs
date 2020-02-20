@@ -9,6 +9,7 @@ fn long_press_map(btn: Button) -> Option<Action> {
         Button::DPadLeft => Some(Action::PreviousClip),
         Button::West => Some(Action::BreakLoop),
         Button::East => Some(Action::BreakLoop),
+        Button::North => Some(Action::ConcatClips),
         _ => None
     }
 }

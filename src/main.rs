@@ -10,6 +10,7 @@ use vlc::{Instance, Media, MediaPlayer, Event, EventType, State, MediaPlayerVide
 
 
 mod input;
+pub mod ffmpeg;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -37,6 +38,7 @@ pub enum Action {
     NextClip,
     PreviousClip,
     RestartClip,
+    ConcatClips,
     Stop,
     Exit,
 }
@@ -200,7 +202,7 @@ fn main() {
     if mdp.get_fullscreen() == false {
         mdp.toggle_fullscreen();
     }
-    mdp.play();
+    mdp.play().unwrap();
 
     let mut loop_start: i64 = -1;
     let mut loop_end: i64 = -1;
@@ -231,7 +233,7 @@ fn main() {
                 if mdp.is_playing() {
                     mdp.pause();
                 } else {
-                    mdp.play();
+                    mdp.play().unwrap();
                 }
             }
             Action::Forward(speed) => {
@@ -282,6 +284,23 @@ fn main() {
             Action::DecreaseSpeed => {
                 let current_speed = mdp.get_rate();
                 mdp.set_rate(current_speed - 0.1);
+            }
+
+            Action::ConcatClips => {
+                let s = String::from(path.to_str().unwrap()) + "_clips";
+                let clips_dir_path = Path::new(s.as_str());
+                if clips_dir_path.exists() == false {
+                    std::fs::create_dir(&clips_dir_path).expect("unable to create directory");
+                }
+                let result = ffmpeg::concat(clips_dir_path, Path::new("_condensed.mp4"));
+                let msg = if let Err(e) = result {
+                    println!("{}", e);
+                    "error concatenating"
+                } else {
+                    "concatenating clips"
+                };
+
+                mdp.show_marqee_text(&msg, &marquee_option);
             }
 
             Action::CutCurrentLoop(o_d_option) => {
@@ -449,7 +468,7 @@ fn main() {
                 path = media_iter.next().unwrap();
                 md = load_media(&instance, path, &tx);
                 mdp.set_media(&md);
-                mdp.play();
+                mdp.play().unwrap();
             },
 
             Action::PreviousMedia => {
@@ -461,7 +480,7 @@ fn main() {
                         println!("previous is {:?}", path);
                         let md = load_media(&instance, path, &tx);
                         mdp.set_media(&md);
-                        mdp.play();
+                        mdp.play().unwrap();
                         break;
                     }
                     previous = media;
@@ -470,7 +489,7 @@ fn main() {
 
             Action::RestartMedia => {
                 mdp.set_media(&md);
-                mdp.play();
+                mdp.play().unwrap();
             }
 
             Action::Exit => {
