@@ -1,16 +1,15 @@
 //use crossterm::{RawScreen, AsyncReader, InputEvent, KeyEvent, SyncReader};
 
-use super::super::Action as Action;
-use super::super::ClipOf_O_D as ClipOf_O_D;
+use super::super::Action;
+use super::super::ClipOf_O_D;
 
-use multiinput::{KeyId, RawInputManager, DeviceType, RawEvent, State};
-use std::time::Duration;
-use std::sync::mpsc::SendError;
-use std::iter::Map;
+use multiinput::DeviceInfo::Keyboard;
+use multiinput::{DeviceType, KeyId, RawEvent, RawInputManager, State};
 use std::collections::HashMap;
 use std::intrinsics::transmute;
-use multiinput::DeviceInfo::Keyboard;
-
+use std::iter::Map;
+use std::sync::mpsc::SendError;
+use std::time::Duration;
 
 fn translate_key_id(s: &str) -> Result<KeyId, (String)> {
     match s.to_lowercase().as_str() {
@@ -102,8 +101,6 @@ fn translate_key_id(s: &str) -> Result<KeyId, (String)> {
     }
 }
 
-
-
 fn key_map_from_config(config_file_path: &str) -> Result<HashMap<KeyId, Option<Action>>, String> {
     let config_tree = configuration::format::TOML::open(config_file_path).unwrap();
 
@@ -141,12 +138,22 @@ fn key_map_from_config(config_file_path: &str) -> Result<HashMap<KeyId, Option<A
         map.insert(translate_key_id(x)?, Some(Action::BreakLoop));
     }
 
-    if let Some(x) = config_tree.get::<String>(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense)).into()) {
-        map.insert(translate_key_id(x)?, Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))));
+    if let Some(x) =
+        config_tree.get::<String>(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense)).into())
+    {
+        map.insert(
+            translate_key_id(x)?,
+            Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))),
+        );
     }
 
-    if let Some(x) = config_tree.get::<String>(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense)).into()) {
-        map.insert(translate_key_id(x)?, Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense))));
+    if let Some(x) =
+        config_tree.get::<String>(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense)).into())
+    {
+        map.insert(
+            translate_key_id(x)?,
+            Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense))),
+        );
     }
 
     if let Some(x) = config_tree.get::<String>(Action::CutCurrentLoop(None).into()) {
@@ -213,10 +220,9 @@ pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
                         println!("nothing corresponding");
                         &None
                     }
-                },
+                }
                 _ => &None,
             };
-
 
             if let Some(action) = action_option {
                 if let Err(_) = tx.send(action.clone()) {
@@ -231,8 +237,8 @@ pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
 
 mod test {
     use crate::input::keyboard::*;
-    use multiinput::KeyId;
     use crate::Action;
+    use multiinput::KeyId;
 
     #[test]
     fn read_config_test() {

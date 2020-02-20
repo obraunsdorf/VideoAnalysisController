@@ -1,12 +1,12 @@
 pub mod controller;
 pub mod keyboard;
 
-use std::thread;
-use super::Action as Action;
+use super::Action;
 use std::sync::mpsc::channel;
+use std::thread;
 
 pub enum ControlMsg {
-    Stop
+    Stop,
 }
 
 pub fn spawn_input_threads_with_sender(tx_orig: &std::sync::mpsc::Sender<Action>) {
@@ -21,6 +21,4 @@ pub fn spawn_input_threads_with_sender(tx_orig: &std::sync::mpsc::Sender<Action>
     thread::spawn(|| {
         controller::read_controller(tx_controller);
     });
-
-
 }

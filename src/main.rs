@@ -1,16 +1,14 @@
-#![feature(duration_float)]
-
-
-use std::sync::mpsc::{channel};
-use std::process::Command;
-use std::string::{ToString, String};
 use std::collections::btree_set::BTreeSet;
+use std::process::Command;
+use std::string::{String, ToString};
+use std::sync::mpsc::channel;
 
-use vlc::{Instance, Media, MediaPlayer, Event, EventType, State, MediaPlayerVideoEx, MarqueeOption};
+use vlc::{
+    Event, EventType, Instance, MarqueeOption, Media, MediaPlayer, MediaPlayerVideoEx, State,
+};
 
-
-mod input;
 pub mod ffmpeg;
+mod input;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -57,7 +55,7 @@ impl Into<&str> for Action {
                 Some(ClipOf_O_D::Offense) => "CutLoop_Offense",
                 Some(ClipOf_O_D::Defense) => "CutLoop_Defense",
                 None => "CutLoop",
-            }
+            },
             Action::NextMedia => "NextMedia",
             Action::PreviousMedia => "PreviousMedia",
             Action::RestartMedia => "RestartMedia",
@@ -71,12 +69,10 @@ impl Into<&str> for Action {
     }
 }
 
-
 static MAX_SPEED: f32 = 16.0;
 static BREAKPOINT: f32 = 0.5;
 
 const VIDEO_EXTENSIONS: &[&str] = &["MOV", "MPEG", "MP4"];
-
 
 /*fn check_loop_end(tx_orig: &std::sync::mpsc::Sender<Action>,
                   mdp: MediaPlayer,
@@ -106,25 +102,26 @@ const VIDEO_EXTENSIONS: &[&str] = &["MOV", "MPEG", "MP4"];
     });
 }*/
 
-fn load_media(vlc_instance: &vlc::Instance, path: &Path, tx_0: &std::sync::mpsc::Sender<Action>)
-    -> Media {
+fn load_media(
+    vlc_instance: &vlc::Instance,
+    path: &Path,
+    tx_0: &std::sync::mpsc::Sender<Action>,
+) -> Media {
     //let md = Media::new_location(&instance, "https://www.youtube.com/watch?v=M3Q8rIgveO0").unwrap();
     let tx = tx_0.clone();
     let tx_2 = tx_0.clone();
     let md = Media::new_path(&vlc_instance, path).unwrap();
     let em = md.event_manager();
-    let _ = em.attach(EventType::MediaStateChanged, move |e, _| {
-        match e {
-            Event::MediaStateChanged(s) => {
-                println!("State : {:?}", s);
-                match s {
-                    State::Ended => tx.send(Action::Stop).unwrap(),
-                    State::Error => tx.send(Action::Exit).unwrap(),
-                    _ => {}
-                }
+    let _ = em.attach(EventType::MediaStateChanged, move |e, _| match e {
+        Event::MediaStateChanged(s) => {
+            println!("State : {:?}", s);
+            match s {
+                State::Ended => tx.send(Action::Stop).unwrap(),
+                State::Error => tx.send(Action::Exit).unwrap(),
+                _ => {}
             }
-            _ => (),
         }
+        _ => (),
     });
 
     /*let _ = em.attach(EventType::MediaPlayerPositionChanged, move |e, _| {
@@ -140,13 +137,10 @@ fn load_media(vlc_instance: &vlc::Instance, path: &Path, tx_0: &std::sync::mpsc:
     return md;
 }
 
-
-
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     println!("args: {:?}", args);
-
 
     if args.len() < 2 {
         println!("Please specify a video file");
@@ -158,7 +152,7 @@ fn main() {
     for arg in args[1..].iter() {
         let p = PathBuf::from(arg);
         if p.is_dir() {
-            for dir_entry_result in p.read_dir().unwrap(){
+            for dir_entry_result in p.read_dir().unwrap() {
                 if let Ok(directory_entry) = dir_entry_result {
                     if let Some(s) = directory_entry.path().extension() {
                         if let Some(extension) = s.to_str() {
@@ -189,13 +183,11 @@ fn main() {
     let instance = Instance::with_args(Some(vlc_args)).unwrap();
     //instance.add_intf("qt");
 
-
     /*if let Some(filter_list) = instance.video_filter_list_get() {
         for filter in filter_list.into_iter() {
             println!("video filter: {:?}", filter.name);
         }
     }*/
-
 
     let mdp = MediaPlayer::new(&instance).unwrap();
     let mut md = load_media(&instance, path, &tx);
@@ -215,7 +207,6 @@ fn main() {
     marquee_option.position = Some(0);
     marquee_option.opacity = Some(70);
     marquee_option.timeout = Some(1000);
-
 
     loop {
         std::thread::sleep(Duration::from_millis(100));
@@ -266,13 +257,12 @@ fn main() {
                 let cur_time = mdp.get_time().unwrap();
                 mdp.set_time(cur_time + speed as i64 * 10);
                 //mdp.pause();*/
-                let new_time = mdp.get_time().unwrap() + (speed*1000.0) as i64;
+                let new_time = mdp.get_time().unwrap() + (speed * 1000.0) as i64;
                 mdp.set_time(new_time);
-
             }
 
             Action::Rewind(speed) => {
-                let new_time = mdp.get_time().unwrap() - (speed*1000.0) as i64;
+                let new_time = mdp.get_time().unwrap() - (speed * 1000.0) as i64;
                 mdp.set_time(new_time);
             }
 
@@ -280,7 +270,6 @@ fn main() {
                 let current_speed = mdp.get_rate();
                 mdp.set_rate(current_speed + 0.1);
             }
-
 
             Action::DecreaseSpeed => {
                 let current_speed = mdp.get_rate();
@@ -293,7 +282,10 @@ fn main() {
                 if clips_dir_path.exists() == false {
                     std::fs::create_dir(&clips_dir_path).expect("unable to create directory");
                 }
-                let result = ffmpeg::concat(clips_dir_path, clips_dir_path.join("_condensed_all_.mp4").as_path());
+                let result = ffmpeg::concat(
+                    clips_dir_path,
+                    clips_dir_path.join("_condensed_all_.mp4").as_path(),
+                );
                 let msg = if let Err(e) = result {
                     println!("{}", e);
                     "error concatenating"
@@ -327,11 +319,11 @@ fn main() {
                         ClipOf_O_D::Offense => {
                             out_file_name.push_str("Off");
                             user_hint = " as Offense"
-                        },
+                        }
                         ClipOf_O_D::Defense => {
                             out_file_name.push_str("Def");
                             user_hint = " as Defense"
-                        },
+                        }
                     }
                 }
                 out_file_name = out_file_name + "." + extension;
@@ -342,8 +334,6 @@ fn main() {
                 let start = loop_start as f32 / 1000.0;
                 let end = loop_end as f32 / 1000.0;
                 let duration = end - start;
-
-
 
                 if let Ok(child_proc) = Command::new("ffmpeg")
                     .arg("-ss")
@@ -357,9 +347,9 @@ fn main() {
                     .arg(out_file_path)
                     .spawn()
                 {
-                        let msg = "cut clip".to_owned() + user_hint;
-                        mdp.show_marqee_text(&msg, &marquee_option);
-                        println!("command executed: {:?}", child_proc);
+                    let msg = "cut clip".to_owned() + user_hint;
+                    mdp.show_marqee_text(&msg, &marquee_option);
+                    println!("command executed: {:?}", child_proc);
                 } else {
                     mdp.show_marqee_text("error on creating clip", &marquee_option);
                 }
@@ -375,7 +365,7 @@ fn main() {
                             loop_end = -1;
                         }
                     }
-                    None => println!("error getting time")
+                    None => println!("error getting time"),
                 }
                 mdp.show_marqee_text("start loop", &marquee_option);
                 println!("set loop start at {:?}", loop_start)
@@ -439,7 +429,7 @@ fn main() {
                         }
                     }
 
-                    None => println!("error getting time")
+                    None => println!("error getting time"),
                 }
                 println!("set loop end at {:?}", loop_end);
                 mdp.show_marqee_text("end loop", &marquee_option);
@@ -447,7 +437,7 @@ fn main() {
                 //check_loop_end(&tx, mdp, loop_start, loop_end);
             }
 
-           /* Action::CheckLoopEnd(pos) => {
+            /* Action::CheckLoopEnd(pos) => {
                 let duration = mdp.get_media().unwrap().duration().unwrap();
                 let cur_time = (duration as f64 * pos as f64) as i64;
                 println!("checking loop end: cur_time={:?} loop_end={:?}", cur_time, loop_end);
@@ -458,19 +448,17 @@ fn main() {
                     println!("no");
                 }
             }*/
-
             Action::BreakLoop => {
                 mdp.show_marqee_text("break loop", &marquee_option);
                 loop_end = -1;
             }
 
-            Action::Stop |
-            Action::NextMedia => {
+            Action::Stop | Action::NextMedia => {
                 path = media_iter.next().unwrap();
                 md = load_media(&instance, path, &tx);
                 mdp.set_media(&md);
                 mdp.play().unwrap();
-            },
+            }
 
             Action::PreviousMedia => {
                 println!("playing media previous to {:?}", path);
@@ -495,10 +483,8 @@ fn main() {
 
             Action::Exit => {
                 break;
-            },
+            }
         };
     }
     println!("exiting");
 }
-
-

@@ -1,7 +1,7 @@
-use gilrs::{Gilrs, Button, Event, EventType};
+use gilrs::{Button, Event, EventType, Gilrs};
 
-use super::super::Action as Action;
-use super::super::ClipOf_O_D as ClipOf_O_D;
+use super::super::Action;
+use super::super::ClipOf_O_D;
 use std::collections::HashMap;
 
 fn long_press_map(btn: Button) -> Option<Action> {
@@ -10,11 +10,11 @@ fn long_press_map(btn: Button) -> Option<Action> {
         Button::West => Some(Action::BreakLoop),
         Button::East => Some(Action::BreakLoop),
         Button::North => Some(Action::ConcatClips),
-        _ => None
+        _ => None,
     }
 }
 
-fn short_press_map(btn: Button) -> Option<Action>{
+fn short_press_map(btn: Button) -> Option<Action> {
     match btn {
         Button::Start => Some(Action::Exit),
         Button::South => Some(Action::TogglePlayPause),
@@ -27,7 +27,7 @@ fn short_press_map(btn: Button) -> Option<Action>{
         Button::DPadLeft => Some(Action::RestartClip),
         Button::DPadUp => Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))),
         Button::DPadDown => Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense))),
-        _ => None
+        _ => None,
     }
 }
 
@@ -47,7 +47,7 @@ pub fn read_controller(tx: std::sync::mpsc::Sender<Action>) {
             match event {
                 EventType::ButtonPressed(btn, _) => {
                     last_pressed.insert(btn, std::time::Instant::now());
-                },
+                }
 
                 EventType::ButtonReleased(btn, _) => {
                     if let Some(lp) = last_pressed.get(&btn) {
@@ -65,15 +65,13 @@ pub fn read_controller(tx: std::sync::mpsc::Sender<Action>) {
                     }
                 }
 
-                EventType::ButtonChanged(btn, pos, _) => {
-                    match btn {
-                        Button::LeftTrigger => tx.send(Action::Rewind(pos)).unwrap(),
-                        Button::LeftTrigger2 => tx.send(Action::Rewind(pos)).unwrap(),
-                        Button::RightTrigger => tx.send(Action::Forward(pos)).unwrap(),
-                        Button::RightTrigger2 => tx.send(Action::Forward(pos)).unwrap(),
-                        _ => {}
-                    }
-                }
+                EventType::ButtonChanged(btn, pos, _) => match btn {
+                    Button::LeftTrigger => tx.send(Action::Rewind(pos)).unwrap(),
+                    Button::LeftTrigger2 => tx.send(Action::Rewind(pos)).unwrap(),
+                    Button::RightTrigger => tx.send(Action::Forward(pos)).unwrap(),
+                    Button::RightTrigger2 => tx.send(Action::Forward(pos)).unwrap(),
+                    _ => {}
+                },
 
                 _ => {}
             };

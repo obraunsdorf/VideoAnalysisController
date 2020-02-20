@@ -1,6 +1,6 @@
-use std::path::Path;
 use std::fs::File;
-use std::io::{Write, BufReader, BufRead};
+use std::io::{BufRead, BufReader, Write};
+use std::path::Path;
 use std::process::Command;
 pub fn concat(dir_path: &Path, output_file_path: &Path) -> Result<(), String> {
     let index_file_path = Path::new("index.txt");
@@ -42,20 +42,14 @@ pub fn concat(dir_path: &Path, output_file_path: &Path) -> Result<(), String> {
     result
 }
 
-
-
-
-mod test{
+mod test {
     use crate::ffmpeg::*;
     use std::path::Path;
     #[test]
     fn test_ffmpeg_concat() {
         let output_file_path = Path::new("output.mp4");
 
-        let dir_path =
-            Path::new("tests")
-                .join("ressources")
-                .join("ffmpeg_concat");
+        let dir_path = Path::new("tests").join("ressources").join("ffmpeg_concat");
 
         let result = concat(&dir_path, output_file_path);
         if let Err(e) = result {
