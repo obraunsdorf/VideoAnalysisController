@@ -12,6 +12,9 @@ mod input;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+const CLIP_SUFFIX_OFFENSE: &str = "Off";
+const CLIP_SUFFIX_DEFENSE: &str = "Def";
+
 #[derive(Debug, Clone)]
 pub enum ClipOf_O_D {
     Offense,
@@ -282,9 +285,13 @@ fn main() {
                 if clips_dir_path.exists() == false {
                     std::fs::create_dir(&clips_dir_path).expect("unable to create directory");
                 }
+
+                let s2 = path.to_str().unwrap().to_string() + "_condensed";
+                let condensed_dir_path = Path::new(s2.as_str());
+                std::fs::create_dir(&condensed_dir_path);
                 let result = ffmpeg::concat(
                     clips_dir_path,
-                    clips_dir_path.join("_condensed_all_.mp4").as_path(),
+                    condensed_dir_path.join("_all_.mp4").as_path(),
                 );
                 let msg = if let Err(e) = result {
                     println!("{}", e);
@@ -317,11 +324,11 @@ fn main() {
                 if let Some(off_def) = o_d_option {
                     match off_def {
                         ClipOf_O_D::Offense => {
-                            out_file_name.push_str("Off");
+                            out_file_name.push_str(CLIP_SUFFIX_OFFENSE);
                             user_hint = " as Offense"
                         }
                         ClipOf_O_D::Defense => {
-                            out_file_name.push_str("Def");
+                            out_file_name.push_str(CLIP_SUFFIX_DEFENSE);
                             user_hint = " as Defense"
                         }
                     }
