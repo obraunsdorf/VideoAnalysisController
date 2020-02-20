@@ -13,11 +13,13 @@ mod input;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+#[derive(Debug, Clone)]
 pub enum ClipOf_O_D {
     Offense,
     Defense,
 }
 
+#[derive(Debug, Clone)]
 pub enum Action {
     TogglePlayPause,
     Rewind(f32),
@@ -37,6 +39,33 @@ pub enum Action {
     RestartClip,
     Stop,
     Exit,
+}
+impl Into<&str> for Action {
+    fn into(self) -> &'static str {
+        match self {
+            Action::TogglePlayPause => "TogglePlayPause",
+            Action::Rewind(_) => "Rewind",
+            Action::Forward(_) => "Forward",
+            Action::IncreaseSpeed => "IncreaseSpeed",
+            Action::DecreaseSpeed => "DecreaseSpeed",
+            Action::StartLoop => "StartLoop",
+            Action::EndLoop => "EndLoop",
+            Action::BreakLoop => "BreakLoop",
+            Action::CutCurrentLoop(od) => match od {
+                Some(ClipOf_O_D::Offense) => "CutLoop_Offense",
+                Some(ClipOf_O_D::Defense) => "CutLoop_Defense",
+                None => "CutLoop",
+            }
+            Action::NextMedia => "NextMedia",
+            Action::PreviousMedia => "PreviousMedia",
+            Action::RestartMedia => "RestartMedia",
+            Action::NextClip => "NextClip",
+            Action::PreviousClip => "PreviousClip",
+            Action::RestartClip => "RestartClip",
+            Action::Stop => "Stop",
+            Action::Exit => "Exit",
+        }
+    }
 }
 
 
