@@ -37,6 +37,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "C:\projects\videoanalysiscontroller\target\release\VideoAnalysisController.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\projects\videoanalysiscontroller\target\release\keymap.toml"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\projects\videoanalysiscontroller\ffmpeg-4.1.3-win64-static\bin\ffmpeg.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
