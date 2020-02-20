@@ -64,6 +64,7 @@ impl Into<&str> for Action {
             Action::NextClip => "NextClip",
             Action::PreviousClip => "PreviousClip",
             Action::RestartClip => "RestartClip",
+            Action::ConcatClips => "ConcatClips",
             Action::Stop => "Stop",
             Action::Exit => "Exit",
         }
@@ -292,7 +293,7 @@ fn main() {
                 if clips_dir_path.exists() == false {
                     std::fs::create_dir(&clips_dir_path).expect("unable to create directory");
                 }
-                let result = ffmpeg::concat(clips_dir_path, Path::new("_condensed.mp4"));
+                let result = ffmpeg::concat(clips_dir_path, clips_dir_path.join("_condensed_all_.mp4").as_path());
                 let msg = if let Err(e) = result {
                     println!("{}", e);
                     "error concatenating"

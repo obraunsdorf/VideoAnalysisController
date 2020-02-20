@@ -11,52 +11,6 @@ use std::collections::HashMap;
 use std::intrinsics::transmute;
 use multiinput::DeviceInfo::Keyboard;
 
-fn get_action(key: &KeyId) -> Option<Action> {
-    match key {
-        KeyId::Space => Some(Action::TogglePlayPause),
-        KeyId::Left => Some(Action::Rewind(0.7)),
-        KeyId::Right => Some(Action::Forward(0.7)),
-        KeyId::Up => Some(Action::IncreaseSpeed),
-        KeyId::Down => Some(Action::DecreaseSpeed),
-        KeyId::T => Some(Action::StartLoop),
-        KeyId::Z => Some(Action::EndLoop),
-        KeyId::B => Some(Action::BreakLoop),
-//'h' => Some(Action::CheckLoopEnd(f32)),
-        KeyId::O => Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))),
-        KeyId::D => Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense))),
-        KeyId::I => Some(Action::NextMedia),
-        KeyId::K => Some(Action::PreviousMedia),
-        KeyId::M => Some(Action::RestartMedia),
-        KeyId::W => Some(Action::NextClip),
-        KeyId::S => Some(Action::PreviousClip),
-        KeyId::Y => Some(Action::RestartClip),
-//        KeyId::Q => Some(Action::Stop),
-        KeyId::Escape => Some(Action::Exit),
-        _ => None
-    }
-}
-
-/*
-#[derive(Debug, Serialize, Deserialize)]
-struct KeyboardMap {
-    toggle_play_pause: String,
-    start_loop: String,
-    end_loop: String,
-    cut: String,
-}
-
-impl Default for KeyboardMap {
-    fn default() -> Self {
-        KeyboardMap {
-            toggle_play_pause: "Space".to_owned(),
-            start_loop: "a".to_owned(),
-            end_loop: "b".to_owned(),
-            cut: "c".to_owned(),
-        }
-    }
-}
-*/
-
 
 fn translate_key_id(s: &str) -> Result<KeyId, (String)> {
     match s.to_lowercase().as_str() {
@@ -152,9 +106,6 @@ fn translate_key_id(s: &str) -> Result<KeyId, (String)> {
 
 fn key_map_from_config(config_file_path: &str) -> Result<HashMap<KeyId, Option<Action>>, String> {
     let config_tree = configuration::format::TOML::open(config_file_path).unwrap();
-    /*confy::store("nana", KeyboardMap::default()).unwrap();
-    let cfg: KeyboardMap = confy::load(config_file_path).unwrap();
-    println!("{:?}", cfg);*/
 
     let mut map = HashMap::new();
     //Action::TogglePlayPause.
@@ -194,12 +145,12 @@ fn key_map_from_config(config_file_path: &str) -> Result<HashMap<KeyId, Option<A
         map.insert(translate_key_id(x)?, Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))));
     }
 
-    if let Some(x) = config_tree.get::<String>(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense)).into()) {
-        map.insert(translate_key_id(x)?, Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))));
+    if let Some(x) = config_tree.get::<String>(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense)).into()) {
+        map.insert(translate_key_id(x)?, Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense))));
     }
 
-    if let Some(x) = config_tree.get::<String>(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense)).into()) {
-        map.insert(translate_key_id(x)?, Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))));
+    if let Some(x) = config_tree.get::<String>(Action::CutCurrentLoop(None).into()) {
+        map.insert(translate_key_id(x)?, Some(Action::CutCurrentLoop(None)));
     }
 
     if let Some(x) = config_tree.get::<String>(Action::NextMedia.into()) {
@@ -226,6 +177,10 @@ fn key_map_from_config(config_file_path: &str) -> Result<HashMap<KeyId, Option<A
         map.insert(translate_key_id(x)?, Some(Action::RestartClip));
     }
 
+    if let Some(x) = config_tree.get::<String>(Action::ConcatClips.into()) {
+        map.insert(translate_key_id(x)?, Some(Action::ConcatClips));
+    }
+
     if let Some(x) = config_tree.get::<String>(Action::Stop.into()) {
         map.insert(translate_key_id(x)?, Some(Action::Stop));
     }
@@ -245,6 +200,7 @@ pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
     manager.register_devices(DeviceType::Keyboards);
     //manager.register_devices(DeviceType::Mice);
     let key_map = key_map_from_config("keymap.toml").unwrap();
+    println!("keymap:\n{:#?}", key_map);
     loop {
         if let Some(event) = manager.get_event() {
             let action_option = match &event {

@@ -63,5 +63,6 @@ mod test{
             assert!(false);
         }
 
+        std::fs::remove_file(output_file_path);
     }
 }
