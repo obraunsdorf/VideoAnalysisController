@@ -83,6 +83,10 @@ branches:
     - /^v\d+\.\d+\.\d+.*$/
     - master
 
+artifacts:
+  - path: VACSetup.exe
+  - name: VACSetup.exe
+
 notifications:
   - provider: Email
     on_build_success: false

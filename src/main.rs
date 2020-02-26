@@ -15,13 +15,13 @@ use std::time::Duration;
 const CLIP_SUFFIX_OFFENSE: &str = "Off";
 const CLIP_SUFFIX_DEFENSE: &str = "Def";
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum ClipOf_O_D {
     Offense,
     Defense,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum Action {
     TogglePlayPause,
     Rewind(f32),

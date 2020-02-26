@@ -10,3 +10,4 @@ vlc-rs = { git  = "https://github.com/obraunsdorf/vlc-rs" }
 gilrs = "0.7.1"
 multiinput = "0.0.15"
 configuration = "0.7.2"
+winapi-easy = "0.1.0"
