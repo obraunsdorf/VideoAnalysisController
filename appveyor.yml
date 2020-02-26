@@ -85,7 +85,7 @@ branches:
 
 artifacts:
   - path: VACSetup.exe
-  - name: VACSetup.exe
+      name: VACSetup.exe
 
 notifications:
   - provider: Email
