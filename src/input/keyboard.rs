@@ -101,7 +101,7 @@ fn translate_key_id(s: &str) -> Result<Key, (String)> {
     }
 }
 
-/*fn key_map_from_config(config_file_path: &str) -> Result<BTreeMap<Key, Option<Action>>, String> {
+fn key_map_from_config(config_file_path: &str) -> Result<BTreeMap<Key, Option<Action>>, String> {
     let config_tree = configuration::format::TOML::open(config_file_path).unwrap();
 
     let mut map = BTreeMap::new();
@@ -196,20 +196,28 @@ fn translate_key_id(s: &str) -> Result<Key, (String)> {
     }
 
     Ok(map)
-}*/
+}
 
 pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
     println!("starting to read");
 
+    /*let fg_window = WindowHandle::get_foreground_window().unwrap();
+    let c_window = WindowHandle::get_console_window().unwrap();
+    let d_window = WindowHandle::get_desktop_window().unwrap();
 
-    /*let key_map = key_map_from_config("keymap.toml").unwrap();
+    for w in [fg_window, c_window, d_window].iter() {
+        println!("window: {}", w.get_caption_text());
+    }*/
+
+    let mut hotkeys = GlobalHotkeySet::new();
+    let key_map = key_map_from_config("keymap.toml").unwrap();
     for (key, action_option) in key_map.iter() {
         if let Some(action) = action_option {
-            hotkeys.add_global_hotkey(action, key.clone());
+            hotkeys = hotkeys.add_global_hotkey(action.clone(), key.clone());
         }
-    }*/
-    let hotkeys = GlobalHotkeySet::new()
-        .add_global_hotkey(Action::TogglePlayPause, Key::Space)
+    }
+
+        /*.add_global_hotkey(Action::TogglePlayPause, Key::Space)
         .add_global_hotkey(Action::Rewind(0.7), Key::LeftArrow)
         .add_global_hotkey(Action::Forward(0.7), Key::RightArrow)
         .add_global_hotkey(Action::IncreaseSpeed, Key::UpArrow)
@@ -227,10 +235,10 @@ pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
         .add_global_hotkey(Action::PreviousClip, Key::S)
         .add_global_hotkey(Action::RestartClip, Key::Y)
         .add_global_hotkey(Action::ConcatClips, Key::U)
-        .add_global_hotkey(Action::Exit, Key::Esc);
+        .add_global_hotkey(Action::Exit, Key::Esc);*/
 
 
-    for action_result in hotkeys.listen_for_hotkeys().unwrap() {
+    for action_result in hotkeys.listen_for_hotkeys_with_sleeptime(Some(Duration::from_millis(20))).unwrap() {
         if let Ok(action) = action_result {
             tx.send(action.clone()).unwrap();
         }
@@ -273,10 +281,10 @@ mod test {
     use crate::input::keyboard::*;
     use crate::Action;
 
-    /*#[test]
+    #[test]
     fn read_config_test() {
         let key_map = key_map_from_config("keymap.toml").unwrap();
         println!("{:?}", key_map);
         assert!(key_map.len() > 0);
-    }*/
+    }
 }
