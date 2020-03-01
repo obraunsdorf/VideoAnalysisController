@@ -8,8 +8,8 @@ use std::iter::Map;
 use std::sync::mpsc::SendError;
 use std::time::Duration;
 
-use winapi_easy::keyboard::{GlobalHotkeySet, Modifier, Key, KeyCombination};
 use std::cmp::Ordering;
+use winapi_easy::keyboard::{GlobalHotkeySet, Key, KeyCombination, Modifier};
 
 fn translate_key_id(s: &str) -> Result<Key, (String)> {
     match s.to_lowercase().as_str() {
@@ -101,106 +101,144 @@ fn translate_key_id(s: &str) -> Result<Key, (String)> {
     }
 }
 
-fn key_map_from_config(config_file_path: &str) -> Result<BTreeMap<Key, Option<Action>>, String> {
-    let config_tree = configuration::format::TOML::open(config_file_path).unwrap();
-
+fn default_keymap() -> BTreeMap<Key, Option<Action>> {
     let mut map = BTreeMap::new();
-    if let Some(x) = config_tree.get::<String>(Action::TogglePlayPause.into()) {
-        map.insert(translate_key_id(x)?, Some(Action::TogglePlayPause));
-    }
+    map.insert(Key::Space, Some(Action::TogglePlayPause));
+    map.insert(Key::LeftArrow, Some(Action::Rewind(0.7)));
+    map.insert(Key::RightArrow, Some(Action::Forward(0.7)));
+    map.insert(Key::UpArrow, Some(Action::IncreaseSpeed));
+    map.insert(Key::DownArrow, Some(Action::DecreaseSpeed));
+    map.insert(Key::T, Some(Action::StartLoop));
+    map.insert(Key::Z, Some(Action::EndLoop));
+    map.insert(Key::B, Some(Action::BreakLoop));
+    map.insert(
+        Key::O,
+        Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))),
+    );
+    map.insert(
+        Key::D,
+        Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense))),
+    );
+    map.insert(Key::C, Some(Action::CutCurrentLoop(None)));
+    map.insert(Key::I, Some(Action::NextMedia));
+    map.insert(Key::K, Some(Action::PreviousMedia));
+    map.insert(Key::M, Some(Action::RestartMedia));
+    map.insert(Key::W, Some(Action::NextClip));
+    map.insert(Key::S, Some(Action::PreviousClip));
+    map.insert(Key::Y, Some(Action::RestartClip));
+    map.insert(Key::U, Some(Action::ConcatClips));
+    //map.insert(translate_key_id(x)?, Some(Action::Stop));
+    map.insert(Key::Esc, Some(Action::Exit));
 
-    if let Some(x) = config_tree.get::<String>(Action::Rewind(0.7).into()) {
-        map.insert(translate_key_id(x)?, Some(Action::Rewind(0.7)));
-    }
+    map
+}
 
-    if let Some(x) = config_tree.get::<String>(Action::Forward(0.7).into()) {
-        map.insert(translate_key_id(x)?, Some(Action::Forward(0.7)));
-    }
+fn key_map_from_config(config_file_path: &str) -> Result<BTreeMap<Key, Option<Action>>, String> {
+    if let Ok(config_tree) = configuration::format::TOML::open(config_file_path) {
+        let mut map = BTreeMap::new();
 
-    if let Some(x) = config_tree.get::<String>(Action::IncreaseSpeed.into()) {
-        map.insert(translate_key_id(x)?, Some(Action::IncreaseSpeed));
-    }
+        if let Some(x) = config_tree.get::<String>(Action::TogglePlayPause.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::TogglePlayPause));
+        }
 
-    if let Some(x) = config_tree.get::<String>(Action::DecreaseSpeed.into()) {
-        map.insert(translate_key_id(x)?, Some(Action::DecreaseSpeed));
-    }
+        if let Some(x) = config_tree.get::<String>(Action::Rewind(0.7).into()) {
+            map.insert(translate_key_id(x)?, Some(Action::Rewind(0.7)));
+        }
 
-    if let Some(x) = config_tree.get::<String>(Action::StartLoop.into()) {
-        map.insert(translate_key_id(x)?, Some(Action::StartLoop));
-    }
+        if let Some(x) = config_tree.get::<String>(Action::Forward(0.7).into()) {
+            map.insert(translate_key_id(x)?, Some(Action::Forward(0.7)));
+        }
 
-    if let Some(x) = config_tree.get::<String>(Action::EndLoop.into()) {
-        map.insert(translate_key_id(x)?, Some(Action::EndLoop));
-    }
+        if let Some(x) = config_tree.get::<String>(Action::IncreaseSpeed.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::IncreaseSpeed));
+        }
 
-    if let Some(x) = config_tree.get::<String>(Action::BreakLoop.into()) {
-        map.insert(translate_key_id(x)?, Some(Action::BreakLoop));
-    }
+        if let Some(x) = config_tree.get::<String>(Action::DecreaseSpeed.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::DecreaseSpeed));
+        }
 
-    if let Some(x) =
-        config_tree.get::<String>(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense)).into())
-    {
-        map.insert(
-            translate_key_id(x)?,
-            Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))),
+        if let Some(x) = config_tree.get::<String>(Action::StartLoop.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::StartLoop));
+        }
+
+        if let Some(x) = config_tree.get::<String>(Action::EndLoop.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::EndLoop));
+        }
+
+        if let Some(x) = config_tree.get::<String>(Action::BreakLoop.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::BreakLoop));
+        }
+
+        if let Some(x) =
+            config_tree.get::<String>(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense)).into())
+        {
+            map.insert(
+                translate_key_id(x)?,
+                Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))),
+            );
+        }
+
+        if let Some(x) =
+            config_tree.get::<String>(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense)).into())
+        {
+            map.insert(
+                translate_key_id(x)?,
+                Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense))),
+            );
+        }
+
+        if let Some(x) = config_tree.get::<String>(Action::CutCurrentLoop(None).into()) {
+            map.insert(translate_key_id(x)?, Some(Action::CutCurrentLoop(None)));
+        }
+
+        if let Some(x) = config_tree.get::<String>(Action::NextMedia.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::NextMedia));
+        }
+
+        if let Some(x) = config_tree.get::<String>(Action::PreviousMedia.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::PreviousMedia));
+        }
+
+        if let Some(x) = config_tree.get::<String>(Action::RestartMedia.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::RestartMedia));
+        }
+
+        if let Some(x) = config_tree.get::<String>(Action::NextClip.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::NextClip));
+        }
+
+        if let Some(x) = config_tree.get::<String>(Action::PreviousClip.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::PreviousClip));
+        }
+
+        if let Some(x) = config_tree.get::<String>(Action::RestartClip.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::RestartClip));
+        }
+
+        if let Some(x) = config_tree.get::<String>(Action::ConcatClips.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::ConcatClips));
+        }
+
+        if let Some(x) = config_tree.get::<String>(Action::Stop.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::Stop));
+        }
+
+        if let Some(x) = config_tree.get::<String>(Action::Exit.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::Exit));
+        }
+
+        Ok(map)
+    } else {
+        let map = default_keymap();
+        println!(
+            "Could not open keyboard config '{}'. Using he following default key  map: {:#?}",
+            config_file_path, map
         );
+        Ok(map)
     }
-
-    if let Some(x) =
-        config_tree.get::<String>(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense)).into())
-    {
-        map.insert(
-            translate_key_id(x)?,
-            Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense))),
-        );
-    }
-
-    if let Some(x) = config_tree.get::<String>(Action::CutCurrentLoop(None).into()) {
-        map.insert(translate_key_id(x)?, Some(Action::CutCurrentLoop(None)));
-    }
-
-    if let Some(x) = config_tree.get::<String>(Action::NextMedia.into()) {
-        map.insert(translate_key_id(x)?, Some(Action::NextMedia));
-    }
-
-    if let Some(x) = config_tree.get::<String>(Action::PreviousMedia.into()) {
-        map.insert(translate_key_id(x)?, Some(Action::PreviousMedia));
-    }
-
-    if let Some(x) = config_tree.get::<String>(Action::RestartMedia.into()) {
-        map.insert(translate_key_id(x)?, Some(Action::RestartMedia));
-    }
-
-    if let Some(x) = config_tree.get::<String>(Action::NextClip.into()) {
-        map.insert(translate_key_id(x)?, Some(Action::NextClip));
-    }
-
-    if let Some(x) = config_tree.get::<String>(Action::PreviousClip.into()) {
-        map.insert(translate_key_id(x)?, Some(Action::PreviousClip));
-    }
-
-    if let Some(x) = config_tree.get::<String>(Action::RestartClip.into()) {
-        map.insert(translate_key_id(x)?, Some(Action::RestartClip));
-    }
-
-    if let Some(x) = config_tree.get::<String>(Action::ConcatClips.into()) {
-        map.insert(translate_key_id(x)?, Some(Action::ConcatClips));
-    }
-
-    if let Some(x) = config_tree.get::<String>(Action::Stop.into()) {
-        map.insert(translate_key_id(x)?, Some(Action::Stop));
-    }
-
-    if let Some(x) = config_tree.get::<String>(Action::Exit.into()) {
-        map.insert(translate_key_id(x)?, Some(Action::Exit));
-    }
-
-    Ok(map)
 }
 
 pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
-    println!("starting to read");
-
     /*let fg_window = WindowHandle::get_foreground_window().unwrap();
     let c_window = WindowHandle::get_console_window().unwrap();
     let d_window = WindowHandle::get_desktop_window().unwrap();
@@ -210,35 +248,47 @@ pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
     }*/
 
     let mut hotkeys = GlobalHotkeySet::new();
-    let key_map = key_map_from_config("keymap.toml").unwrap();
+    let key_map = match std::env::current_exe() {
+        Ok(mut config_file_path) => {
+            config_file_path = config_file_path.parent().unwrap().join("keymap.toml");
+            println!(
+                "looking for keymap at {}",
+                config_file_path.to_str().unwrap()
+            );
+            key_map_from_config(config_file_path.to_str().unwrap()).unwrap()
+        }
+        Err(_) => default_keymap(),
+    };
     for (key, action_option) in key_map.iter() {
         if let Some(action) = action_option {
             hotkeys = hotkeys.add_global_hotkey(action.clone(), key.clone());
         }
     }
 
-        /*.add_global_hotkey(Action::TogglePlayPause, Key::Space)
-        .add_global_hotkey(Action::Rewind(0.7), Key::LeftArrow)
-        .add_global_hotkey(Action::Forward(0.7), Key::RightArrow)
-        .add_global_hotkey(Action::IncreaseSpeed, Key::UpArrow)
-        .add_global_hotkey(Action::DecreaseSpeed, Key::DownArrow)
-        .add_global_hotkey(Action::StartLoop, Key::T)
-        .add_global_hotkey(Action::EndLoop, Key::Z)
-        .add_global_hotkey(Action::BreakLoop, Key::B)
-        .add_global_hotkey(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense)), Key::D)
-        .add_global_hotkey(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense)), Key::O)
-        .add_global_hotkey(Action::CutCurrentLoop(None), Key::C)
-        .add_global_hotkey(Action::NextMedia, Key::I)
-        .add_global_hotkey(Action::PreviousMedia, Key::K)
-        .add_global_hotkey(Action::RestartMedia, Key::M)
-        .add_global_hotkey(Action::NextClip, Key::W)
-        .add_global_hotkey(Action::PreviousClip, Key::S)
-        .add_global_hotkey(Action::RestartClip, Key::Y)
-        .add_global_hotkey(Action::ConcatClips, Key::U)
-        .add_global_hotkey(Action::Exit, Key::Esc);*/
+    /*.add_global_hotkey(Action::TogglePlayPause, Key::Space)
+    .add_global_hotkey(Action::Rewind(0.7), Key::LeftArrow)
+    .add_global_hotkey(Action::Forward(0.7), Key::RightArrow)
+    .add_global_hotkey(Action::IncreaseSpeed, Key::UpArrow)
+    .add_global_hotkey(Action::DecreaseSpeed, Key::DownArrow)
+    .add_global_hotkey(Action::StartLoop, Key::T)
+    .add_global_hotkey(Action::EndLoop, Key::Z)
+    .add_global_hotkey(Action::BreakLoop, Key::B)
+    .add_global_hotkey(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense)), Key::D)
+    .add_global_hotkey(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense)), Key::O)
+    .add_global_hotkey(Action::CutCurrentLoop(None), Key::C)
+    .add_global_hotkey(Action::NextMedia, Key::I)
+    .add_global_hotkey(Action::PreviousMedia, Key::K)
+    .add_global_hotkey(Action::RestartMedia, Key::M)
+    .add_global_hotkey(Action::NextClip, Key::W)
+    .add_global_hotkey(Action::PreviousClip, Key::S)
+    .add_global_hotkey(Action::RestartClip, Key::Y)
+    .add_global_hotkey(Action::ConcatClips, Key::U)
+    .add_global_hotkey(Action::Exit, Key::Esc);*/
 
-
-    for action_result in hotkeys.listen_for_hotkeys_with_sleeptime(Some(Duration::from_millis(20))).unwrap() {
+    for action_result in hotkeys
+        .listen_for_hotkeys_with_sleeptime(Some(Duration::from_millis(20)))
+        .unwrap()
+    {
         if let Ok(action) = action_result {
             tx.send(action.clone()).unwrap();
         }
