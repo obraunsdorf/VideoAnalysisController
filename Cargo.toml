@@ -8,6 +8,10 @@ build = "build.rs"
 [dependencies]
 vlc-rs = { git  = "https://github.com/obraunsdorf/vlc-rs" }
 gilrs = "0.7.1"
-multiinput = "0.0.15"
 configuration = "0.7.2"
+
+[target.'cfg(windows)'.dependencies]
 winapi-easy = { git  = "https://github.com/obraunsdorf/winapi-easy" }
+
+[target.'cfg(target_os="linux")'.dependencies]
+inputbot = "0.5.0"
