@@ -46,7 +46,7 @@ pub fn concat(input_dir_path: &Path, output_dir_path: &Path) -> Result<(), Strin
         let output_file_path = output_file_pathbuf.as_path();
         for file_path in sorted.values() {
             let index_entry = format!("file '{}'\n", file_path.to_str().unwrap());
-            index_file.write(index_entry.as_bytes()).unwrap();
+            index_file.write_all(index_entry.as_bytes()).unwrap();
         }
 
         index_file.flush().unwrap();

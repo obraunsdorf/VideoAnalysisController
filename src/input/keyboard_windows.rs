@@ -11,64 +11,64 @@ use std::time::Duration;
 use std::cmp::Ordering;
 use winapi_easy::keyboard::{GlobalHotkeySet, Key, KeyCombination, Modifier};
 
-fn translate_key_id(s: &str) -> Result<Key, (String)> {
+fn translate_key_id(s: &str) -> Result<i32, (String)> {
     match s.to_lowercase().as_str() {
-        "escape" => Ok(Key::Esc),
-        "return" => Ok(Key::Return),
-        "backspace" => Ok(Key::Backspace),
-        "left" => Ok(Key::LeftArrow),
-        "right" => Ok(Key::RightArrow),
-        "up" => Ok(Key::UpArrow),
-        "down" => Ok(Key::DownArrow),
-        "space" => Ok(Key::Space),
-        "a" => Ok(Key::A),
-        "b" => Ok(Key::B),
-        "c" => Ok(Key::C),
-        "d" => Ok(Key::D),
-        "e" => Ok(Key::E),
-        "f" => Ok(Key::F),
-        "g" => Ok(Key::G),
-        "h" => Ok(Key::H),
-        "i" => Ok(Key::I),
-        "j" => Ok(Key::J),
-        "k" => Ok(Key::K),
-        "l" => Ok(Key::L),
-        "m" => Ok(Key::M),
-        "n" => Ok(Key::N),
-        "o" => Ok(Key::O),
-        "p" => Ok(Key::P),
-        "q" => Ok(Key::Q),
-        "r" => Ok(Key::R),
-        "s" => Ok(Key::S),
-        "t" => Ok(Key::T),
-        "u" => Ok(Key::U),
-        "v" => Ok(Key::V),
-        "w" => Ok(Key::W),
-        "x" => Ok(Key::X),
-        "y" => Ok(Key::Y),
-        "z" => Ok(Key::Z),
-        "f1" => Ok(Key::F1),
-        "f2" => Ok(Key::F2),
-        "f3" => Ok(Key::F3),
-        "f4" => Ok(Key::F4),
-        "f5" => Ok(Key::F5),
-        "f6" => Ok(Key::F6),
-        "f7" => Ok(Key::F7),
-        "f8" => Ok(Key::F8),
-        "f9" => Ok(Key::F9),
-        "f10" => Ok(Key::F10),
-        "f11" => Ok(Key::F11),
-        "f12" => Ok(Key::F12),
-        "0" => Ok(Key::Number0),
-        "1" => Ok(Key::Number1),
-        "2" => Ok(Key::Number2),
-        "3" => Ok(Key::Number3),
-        "4" => Ok(Key::Number4),
-        "5" => Ok(Key::Number5),
-        "6" => Ok(Key::Number6),
-        "7" => Ok(Key::Number7),
-        "8" => Ok(Key::Number8),
-        "9" => Ok(Key::Number9),
+        "escape" => Ok(Key::Esc as i32),
+        "return" => Ok(Key::Return as i32),
+        "backspace" => Ok(Key::Backspace as i32),
+        "left" => Ok(Key::LeftArrow as i32),
+        "right" => Ok(Key::RightArrow as i32),
+        "up" => Ok(Key::UpArrow as i32),
+        "down" => Ok(Key::DownArrow as i32),
+        "space" => Ok(Key::Space as i32),
+        "a" => Ok(Key::A as i32),
+        "b" => Ok(Key::B as i32),
+        "c" => Ok(Key::C as i32),
+        "d" => Ok(Key::D as i32),
+        "e" => Ok(Key::E as i32),
+        "f" => Ok(Key::F as i32),
+        "g" => Ok(Key::G as i32),
+        "h" => Ok(Key::H as i32),
+        "i" => Ok(Key::I as i32),
+        "j" => Ok(Key::J as i32),
+        "k" => Ok(Key::K as i32),
+        "l" => Ok(Key::L as i32),
+        "m" => Ok(Key::M as i32),
+        "n" => Ok(Key::N as i32),
+        "o" => Ok(Key::O as i32),
+        "p" => Ok(Key::P as i32),
+        "q" => Ok(Key::Q as i32),
+        "r" => Ok(Key::R as i32),
+        "s" => Ok(Key::S as i32),
+        "t" => Ok(Key::T as i32),
+        "u" => Ok(Key::U as i32),
+        "v" => Ok(Key::V as i32),
+        "w" => Ok(Key::W as i32),
+        "x" => Ok(Key::X as i32),
+        "y" => Ok(Key::Y as i32),
+        "z" => Ok(Key::Z as i32),
+        "f1" => Ok(Key::F1 as i32),
+        "f2" => Ok(Key::F2 as i32),
+        "f3" => Ok(Key::F3 as i32),
+        "f4" => Ok(Key::F4 as i32),
+        "f5" => Ok(Key::F5 as i32),
+        "f6" => Ok(Key::F6 as i32),
+        "f7" => Ok(Key::F7 as i32),
+        "f8" => Ok(Key::F8 as i32),
+        "f9" => Ok(Key::F9 as i32),
+        "f10" => Ok(Key::F10 as i32),
+        "f11" => Ok(Key::F11 as i32),
+        "f12" => Ok(Key::F12 as i32),
+        "0" => Ok(Key::Number0 as i32),
+        "1" => Ok(Key::Number1 as i32),
+        "2" => Ok(Key::Number2 as i32),
+        "3" => Ok(Key::Number3 as i32),
+        "4" => Ok(Key::Number4 as i32),
+        "5" => Ok(Key::Number5 as i32),
+        "6" => Ok(Key::Number6 as i32),
+        "7" => Ok(Key::Number7 as i32),
+        "8" => Ok(Key::Number8 as i32),
+        "9" => Ok(Key::Number9 as i32),
         /*"pause" => Ok(Key::Pause),
         "pageup" => Ok(Key::PageUp),
         "pagedown" => Ok(Key::PageDown),
@@ -101,39 +101,39 @@ fn translate_key_id(s: &str) -> Result<Key, (String)> {
     }
 }
 
-fn default_keymap() -> BTreeMap<Key, Option<Action>> {
+fn default_keymap() -> BTreeMap<i32, Option<Action>> {
     let mut map = BTreeMap::new();
-    map.insert(Key::Space, Some(Action::TogglePlayPause));
-    map.insert(Key::LeftArrow, Some(Action::Rewind(0.7)));
-    map.insert(Key::RightArrow, Some(Action::Forward(0.7)));
-    map.insert(Key::UpArrow, Some(Action::IncreaseSpeed));
-    map.insert(Key::DownArrow, Some(Action::DecreaseSpeed));
-    map.insert(Key::T, Some(Action::StartLoop));
-    map.insert(Key::Z, Some(Action::EndLoop));
-    map.insert(Key::B, Some(Action::BreakLoop));
+    map.insert(Key::Space as i32, Some(Action::TogglePlayPause));
+    map.insert(Key::LeftArrow as i32, Some(Action::Rewind(0.7)));
+    map.insert(Key::RightArrow as i32, Some(Action::Forward(0.7)));
+    map.insert(Key::UpArrow as i32, Some(Action::IncreaseSpeed));
+    map.insert(Key::DownArrow as i32, Some(Action::DecreaseSpeed));
+    map.insert(Key::T as i32, Some(Action::StartLoop));
+    map.insert(Key::Z as i32, Some(Action::EndLoop));
+    map.insert(Key::B as i32, Some(Action::BreakLoop));
     map.insert(
-        Key::O,
+        Key::O as i32,
         Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))),
     );
     map.insert(
-        Key::D,
+        Key::D as i32,
         Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense))),
     );
-    map.insert(Key::C, Some(Action::CutCurrentLoop(None)));
-    map.insert(Key::I, Some(Action::NextMedia));
-    map.insert(Key::K, Some(Action::PreviousMedia));
-    map.insert(Key::M, Some(Action::RestartMedia));
-    map.insert(Key::W, Some(Action::NextClip));
-    map.insert(Key::S, Some(Action::PreviousClip));
-    map.insert(Key::Y, Some(Action::RestartClip));
-    map.insert(Key::U, Some(Action::ConcatClips));
+    map.insert(Key::C as i32, Some(Action::CutCurrentLoop(None)));
+    map.insert(Key::I as i32, Some(Action::NextMedia));
+    map.insert(Key::K as i32, Some(Action::PreviousMedia));
+    map.insert(Key::M as i32, Some(Action::RestartMedia));
+    map.insert(Key::W as i32, Some(Action::NextClip));
+    map.insert(Key::S as i32, Some(Action::PreviousClip));
+    map.insert(Key::Y as i32, Some(Action::RestartClip));
+    map.insert(Key::U as i32, Some(Action::ConcatClips));
     //map.insert(translate_key_id(x)?, Some(Action::Stop));
-    map.insert(Key::Esc, Some(Action::Exit));
+    map.insert(Key::Esc as i32, Some(Action::Exit));
 
     map
 }
 
-fn key_map_from_config(config_file_path: &str) -> Result<BTreeMap<Key, Option<Action>>, String> {
+fn key_map_from_config(config_file_path: &str) -> Result<BTreeMap<i32, Option<Action>>, String> {
     if let Ok(config_tree) = configuration::format::TOML::open(config_file_path) {
         let mut map = BTreeMap::new();
 
@@ -259,8 +259,9 @@ pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
         }
         Err(_) => default_keymap(),
     };
-    for (key, action_option) in key_map.iter() {
+    for (key_id, action_option) in key_map.iter() {
         if let Some(action) = action_option {
+            let key: Key = unsafe { std::mem::transmute_copy::<i32, Key>(key_id) };
             hotkeys = hotkeys.add_global_hotkey(action.clone(), key.clone());
         }
     }
@@ -286,7 +287,8 @@ pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
     .add_global_hotkey(Action::Exit, Key::Esc);*/
 
     for action_result in hotkeys
-        .listen_for_hotkeys_with_sleeptime(Some(Duration::from_millis(20)))
+        //.listen_for_hotkeys_with_sleeptime(Some(Duration::from_millis(20)))
+        .listen_for_hotkeys()
         .unwrap()
     {
         if let Ok(action) = action_result {
@@ -328,7 +330,7 @@ pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
 }
 
 mod test {
-    use crate::input::keyboard::*;
+    use super::*;
     use crate::Action;
 
     #[test]
