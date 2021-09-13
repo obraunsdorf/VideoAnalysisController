@@ -1,4 +1,12 @@
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        description: 'enable upterm debugging'     
+        required: false
+        default: 'false'
 
 name: Continuous integration
 
@@ -7,44 +15,46 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest]
+        os: [windows-latest, ubuntu-latest]
         rust:
           - 1.53.0  # Minimum Supported Rust Version
-        include:
-          - os: windows-latest
-            rust_target: x86_64-pc-windows-gnu
             
-
     steps:
+      - uses: actions/checkout@v2
+
       - name: Install Linux Dependencies
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get -y install libinput-dev libxtst-dev libudev-dev ffmpeg libvlc-dev
+        run: sudo apt-get update && sudo apt-get -y install libinput-dev libxtst-dev libudev-dev ffmpeg libvlc-dev libx11-dev libxext-dev libxft-dev libxinerama-dev libxcursor-dev libxrender-dev libxfixes-dev libpango1.0-dev libpng-dev libgl1-mesa-dev libglu1-mesa-dev
         
       - name: Install Windows Dependencies
         if: matrix.os == 'windows-latest'
         shell: powershell
         run: |
-          $client = new-object System.Net.WebClient
-          $client.DownloadFile("https://ftp.fau.de/videolan/vlc/3.0.6/win64/vlc-3.0.6-win64.7z","vlc.7z")
-          7z x vlc.7z
-          ls
-
-      - uses: actions/checkout@v2
+          nuget install VideoLAN.LibVLC.Windows -Version 3.0.16 -OutputDirectory blubVLCbla
 
       - uses: actions-rs/toolchain@v1
         with:
+          toolchain: ${{ matrix.rust }}
           override: true
           components: rustfmt, clippy
 
+      - name: Manually execute cargo build on Windows
+        if: matrix.os == 'windows-latest'
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          set VLC_LIB_DIR=%GITHUB_WORKSPACE%\blubVLCbla\VideoLAN.LibVLC.Windows.3.0.16\build\x64\
+          cargo build
+          
+      
       - uses: actions-rs/cargo@v1
-        env: 
-          VLC_LIB_DIR: ${{ GITHUB_WORKSPACE }}/vlc-3.0.6/
+        if: matrix.os != 'windows-latest'
         with:
           command: build
 
-  #    - uses: actions-rs/cargo@v1
-  #      with:
-  #        command: test
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
 
   #    - uses: actions-rs/cargo@v1
   #      with:
@@ -54,3 +64,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
+          
+      - name: Setup tmate session
+        if: ${{ failure() || github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true' }}
+        uses: mxschmitt/action-tmate@v3
