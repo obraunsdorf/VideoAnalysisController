@@ -127,6 +127,8 @@ fn default_keymap() -> BTreeMap<i32, Option<Action>> {
     map.insert(Key::S as i32, Some(Action::PreviousClip));
     map.insert(Key::Y as i32, Some(Action::RestartClip));
     map.insert(Key::U as i32, Some(Action::ConcatClips));
+    map.insert(Key::Number0 as i32, Some(Action::PreviousCutmark));
+    map.insert(Key::Number1 as i32, Some(Action::NextCutmark));
     //map.insert(translate_key_id(x)?, Some(Action::Stop));
     map.insert(Key::Esc as i32, Some(Action::Exit));
 
@@ -217,6 +219,14 @@ fn key_map_from_config(config_file_path: &str) -> Result<BTreeMap<i32, Option<Ac
 
         if let Some(x) = config_tree.get::<String>(Action::ConcatClips.into()) {
             map.insert(translate_key_id(x)?, Some(Action::ConcatClips));
+        }
+
+        if let Some(x) = config_tree.get::<String>(Action::NextCutmark.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::NextCutmark));
+        }
+
+        if let Some(x) = config_tree.get::<String>(Action::PreviousCutmark.into()) {
+            map.insert(translate_key_id(x)?, Some(Action::PreviousCutmark));
         }
 
         if let Some(x) = config_tree.get::<String>(Action::Stop.into()) {

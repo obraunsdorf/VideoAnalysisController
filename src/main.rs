@@ -40,6 +40,8 @@ pub enum Action {
     PreviousClip,
     RestartClip,
     ConcatClips,
+    PreviousCutmark,
+    NextCutmark,
     Stop,
     Exit,
 }
@@ -66,6 +68,8 @@ impl Into<&str> for Action {
             Action::PreviousClip => "PreviousClip",
             Action::RestartClip => "RestartClip",
             Action::ConcatClips => "ConcatClips",
+            Action::PreviousCutmark => "PreviousCutmark",
+            Action::NextCutmark => "NextCutmarks",
             Action::Stop => "Stop",
             Action::Exit => "Exit",
         }
@@ -176,6 +180,21 @@ fn main() {
     let (tx, rx) = channel::<Action>();
 
     input::spawn_input_threads_with_sender(&tx);
+
+    let cutmarks: BTreeSet<i64> = {
+        //TODO: execute AutoCutMarks and read from result file
+        let cutmark_frames = vec![255, 1057, 2222];
+        /*let fps = 30;
+        let cutmark_times = cutmark_frames.iter().map(move |frame| frame*fps);*/
+
+        let mut set = BTreeSet::new();
+        set.insert(5102);
+        set.insert(44069);
+        set.insert(66322);
+        set.insert(94823);
+
+        set
+    };
 
     //let instance = Instance::new().unwrap();
     let vlc_args: Vec<String> = vec![
@@ -419,6 +438,40 @@ fn main() {
                     if clip <= &cur_time {
                         mdp.set_time(*clip);
                         println!("restarting clip from to {}", *clip);
+                        break;
+                    }
+                }
+            }
+
+
+            Action::PreviousCutmark => {
+                let cur_time = mdp.get_time().unwrap();
+
+                let mut iter = cutmarks.iter().rev();
+                while let Some(cutmark) = iter.next() {
+                    if cutmark <= &cur_time {
+                        if let Some(prev_cutmark) = iter.next() {
+                            mdp.set_time(*prev_cutmark);
+                            println!("previous cutmark from {}", *prev_cutmark);
+                        } else {
+                            mdp.set_time(*cutmark);
+                            println!("previous cutmark from {}", *cutmark);
+                        }
+                        mdp.play();
+                        tx.send(Action::TogglePlayPause).unwrap();
+                        break;
+                    }
+                }
+            }
+
+            Action::NextCutmark => {
+                let cur_time = mdp.get_time().unwrap();
+                for cutmark in &mut cutmarks.iter() {
+                    if cutmark > &cur_time {
+                        mdp.set_time(*cutmark);
+                        mdp.play();
+                        tx.send(Action::TogglePlayPause).unwrap();
+                        println!("jumping to cutmark {}", *cutmark);
                         break;
                     }
                 }

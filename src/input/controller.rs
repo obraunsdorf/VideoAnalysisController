@@ -7,8 +7,9 @@ use std::collections::HashMap;
 fn long_press_map(btn: Button) -> Option<Action> {
     match btn {
         Button::DPadLeft => Some(Action::PreviousClip),
-        Button::West => Some(Action::BreakLoop),
-        Button::East => Some(Action::BreakLoop),
+        Button::South => Some(Action::BreakLoop),
+        Button::West => Some(Action::PreviousCutmark),
+        Button::East => Some(Action::NextCutmark),
         Button::North => Some(Action::ConcatClips),
         _ => None,
     }
