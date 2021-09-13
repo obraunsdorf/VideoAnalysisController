@@ -2,9 +2,12 @@ use std::collections::btree_set::BTreeSet;
 use std::process::Command;
 use std::string::{String, ToString};
 use std::sync::mpsc::channel;
+use fltk::*;
+use libc::c_void;
+use std::convert::TryInto;
 
 use vlc::{
-    Event, EventType, Instance, MarqueeOption, Media, MediaPlayer, MediaPlayerVideoEx, State,
+    Event, EventType, Instance, Media, MediaPlayer, MediaPlayerVideoEx, State,
 };
 
 pub mod ffmpeg;
@@ -144,7 +147,40 @@ fn load_media(
     return md;
 }
 
+
 fn main() {
+    //startVLC(None, None);
+    run_with_fltk();
+}
+
+#[cfg(target_os = "windows")]
+type WindowHandle = *mut c_void;
+
+#[cfg(target_os = "linux")]
+type WindowHandle = u64;
+
+fn run_with_fltk() {
+    let app = app::App::default().with_scheme(app::AppScheme::Gtk);
+    let mut win = window::Window::new(100, 100, 800, 600, "Media Player");
+
+    // Create inner window to act as embedded media player
+    let mut vlc_win = window::Window::new(10, 10, 780, 520, "");
+    vlc_win.end();
+    vlc_win.set_color(Color::Black);
+
+    let mut but_play = button::Button::new(320, 545, 80, 40, "Play");
+    let mut but_stop = button::Button::new(400, 545, 80, 40, "Stop");
+
+    win.end();
+    win.show();
+    win.make_resizable(true);
+
+    let handle = vlc_win.raw_handle();
+
+   startVLC(Some(app), Some(handle));
+}
+
+fn startVLC(fltk_app: Option<fltk::app::App>, render_window: Option<WindowHandle>) {
     let args: Vec<String> = std::env::args().collect();
 
     println!("args: {:?}", args);
@@ -214,9 +250,39 @@ fn main() {
     let mdp = MediaPlayer::new(&instance).unwrap();
     let mut md = load_media(&instance, path, &tx);
     mdp.set_media(&md);
-    if mdp.get_fullscreen() == false {
-        mdp.toggle_fullscreen();
+
+    if let Some(handle) = render_window {
+        #[cfg(target_os = "windows")]
+        mdp.set_hwnd(handle);
+
+        #[cfg(target_os = "linux")]
+        mdp.set_xwindow(handle.try_into().unwrap()); // TODO unchecked u64 -> u32 conversion
+        println!("############## set window handle ################");
+        // Disable event handling on vlc's side
+        // Do it thru fltk
+        //mdp.set_key_input(false);
+        //mdp.set_mouse_input(false);
+    } else {
+        if mdp.get_fullscreen() == false {
+            mdp.toggle_fullscreen();
+        }
     }
+
+
+
+   /* if let Some(app) = fltk_app {
+        let (s, r) = app::channel::<Action>();
+        while app.wait().unwrap() {
+            match r.recv() {
+                Some(val) => match val {
+                    Action::TogglePlayPause => mdp.play().unwrap(),
+                    Action::Stop => mdp.stop(),
+                },
+                None => (),
+            }
+        }
+    }*/
+    
     mdp.play().unwrap();
 
     let mut loop_start: i64 = -1;
@@ -225,13 +291,14 @@ fn main() {
 
     let mut clips: BTreeSet<i64> = BTreeSet::new();
 
-    let mut marquee_option: MarqueeOption = Default::default();
+   /* let mut marquee_option: MarqueeOption = Default::default();
     marquee_option.position = Some(0);
     marquee_option.opacity = Some(70);
-    marquee_option.timeout = Some(1000);
+    marquee_option.timeout = Some(1000);*/
 
     loop {
-        std::thread::sleep(Duration::from_millis(100));
+        //std::thread::sleep(Duration::from_millis(100));
+        fltk::app::wait_for(0.01).unwrap();
         if loop_end != -1 && mdp.get_time().unwrap() >= loop_end {
             mdp.set_time(loop_start);
         }
@@ -316,7 +383,7 @@ fn main() {
                     "concatenating clips"
                 };
 
-                mdp.show_marqee_text(&msg, &marquee_option);
+                //mdp.show_marqee_text(&msg, &marquee_option);
             }
 
             Action::CutCurrentLoop(o_d_option) => {
@@ -371,10 +438,10 @@ fn main() {
                     .spawn()
                 {
                     let msg = "cut clip".to_owned() + user_hint;
-                    mdp.show_marqee_text(&msg, &marquee_option);
+                    //mdp.show_marqee_text(&msg, &marquee_option);
                     println!("command executed: {:?}", child_proc);
                 } else {
-                    mdp.show_marqee_text("error on creating clip", &marquee_option);
+                    //mdp.show_marqee_text("error on creating clip", &marquee_option);
                 }
 
                 loop_start = -1;
@@ -390,7 +457,7 @@ fn main() {
                     }
                     None => println!("error getting time"),
                 }
-                mdp.show_marqee_text("start loop", &marquee_option);
+                //mdp.show_marqee_text("start loop", &marquee_option);
                 println!("set loop start at {:?}", loop_start)
             }
 
@@ -423,11 +490,12 @@ fn main() {
                 for clip in &mut clips.iter() {
                     if clip >= &cur_time {
                         mdp.set_time(*clip);
-                        println!("jumping to {}", *clip);
+                        println!("jumping to clip {}", *clip);
                         break;
                     }
                 }
             }
+
 
             Action::RestartClip => {
                 if clips.len() == 0 {
@@ -489,7 +557,7 @@ fn main() {
                     None => println!("error getting time"),
                 }
                 println!("set loop end at {:?}", loop_end);
-                mdp.show_marqee_text("end loop", &marquee_option);
+                //mdp.show_marqee_text("end loop", &marquee_option);
                 mdp.set_time(loop_start);
                 //check_loop_end(&tx, mdp, loop_start, loop_end);
             }
@@ -506,7 +574,7 @@ fn main() {
                 }
             }*/
             Action::BreakLoop => {
-                mdp.show_marqee_text("break loop", &marquee_option);
+                //mdp.show_marqee_text("break loop", &marquee_option);
                 loop_end = -1;
             }
 

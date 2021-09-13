@@ -6,9 +6,12 @@ edition = "2018"
 build = "build.rs"
 
 [dependencies]
-vlc-rs = { git  = "https://github.com/obraunsdorf/vlc-rs" }
+vlc-rs = { git  = "https://code.videolan.org/mfkl/vlc-rs.git" }
 gilrs = "0.7.1"
 configuration = "0.7.2"
+#clap = "2.33.3"
+fltk = { version = "0.7.22", features = ["fltk-bundled"] }
+libc = "0.2.101"
 
 [target.'cfg(windows)'.dependencies]
 winapi-easy = "0.1.0"

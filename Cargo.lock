@@ -7,8 +7,10 @@ name = "VideoAnalysisController"
 version = "0.1.0"
 dependencies = [
  "configuration",
+ "fltk",
  "gilrs",
  "inputbot",
+ "libc",
  "vlc-rs",
  "winapi-easy",
 ]
@@ -55,15 +57,24 @@ checksum = "4a72c244c1ff497a746a7e1fb3d14bd08420ecda70c8f25c7112f2781652d787"
 
 [[package]]
 name = "cfg-if"
-version = "0.1.10"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
+checksum = "11d43355396e872eefb45ce6342e4374ed7bc2b3a502d1b28e36d6e23c05d1f4"
 
 [[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "cmake"
+version = "0.1.45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb6210b637171dfba4cda12e579ac6dc73f5165ad56133e5d72ef3131f320855"
+dependencies = [
+ "cc",
+]
 
 [[package]]
 name = "configuration"
@@ -108,6 +119,35 @@ name = "enum_derive"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "406ac2a8c9eedf8af9ee1489bee9e50029278a6456c740f7454cf8a158abc816"
+
+[[package]]
+name = "fltk"
+version = "0.7.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2cf71cd0031148fb5d6f737cca5d482022314d5e4cb907f56fb7998aea42aa22"
+dependencies = [
+ "fltk-derive",
+ "fltk-sys",
+]
+
+[[package]]
+name = "fltk-derive"
+version = "0.7.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6c28f9977f9f7cc4a47f7ed72531625d6872d3c78658ae14b11085a87b64a2e"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "fltk-sys"
+version = "0.7.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "073dc0e753980f7bd55549d4fc7ecbc9d4716b123e48eb0a1c78e7cbd9c2b351"
+dependencies = [
+ "cmake",
+]
 
 [[package]]
 name = "fnv"
@@ -229,9 +269,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.97"
+version = "0.2.101"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12b8adadd720df158f4d70dfe7ccc6adb0472d7c55ca83445f6a5ab3e36f8fb6"
+checksum = "3cb00336871be5ed2c8ed44b60ae9959dc5b9f08539422ed43f09e34ecaeba21"
 
 [[package]]
 name = "libudev-sys"
@@ -269,7 +309,7 @@ checksum = "b7fd5681d13fda646462cfbd4e5f2051279a89a544d50eb98c365b507246839f"
 dependencies = [
  "bitflags",
  "bytes",
- "cfg-if 0.1.10",
+ "cfg-if 0.1.7",
  "gcc",
  "libc",
  "void",
@@ -283,7 +323,7 @@ checksum = "3b2e0b4f3320ed72aaedb9a5ac838690a8047c7b275da22711fddff4f8a14229"
 dependencies = [
  "bitflags",
  "cc",
- "cfg-if 0.1.10",
+ "cfg-if 0.1.7",
  "libc",
  "void",
 ]
@@ -296,7 +336,7 @@ checksum = "50e4785f2c3b7589a0d0c1dd60285e1188adac4006e8abd6dd578e1567027363"
 dependencies = [
  "bitflags",
  "cc",
- "cfg-if 0.1.10",
+ "cfg-if 0.1.7",
  "libc",
  "void",
 ]
@@ -534,9 +574,10 @@ checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
 [[package]]
 name = "vlc-rs"
 version = "0.3.0"
-source = "git+https://github.com/obraunsdorf/vlc-rs#ac9db5c91113cdb77ad1489c41cec36f54b6c66e"
+source = "git+https://code.videolan.org/mfkl/vlc-rs.git#21c4cb25f52b30fec2e66bc4028d4f45adcb22f6"
 dependencies = [
  "libc",
+ "vswhom",
 ]
 
 [[package]]
@@ -544,6 +585,26 @@ name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
+
+[[package]]
+name = "vswhom"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be979b7f07507105799e854203b470ff7c78a1639e330a58f183b5fea574608b"
+dependencies = [
+ "libc",
+ "vswhom-sys",
+]
+
+[[package]]
+name = "vswhom-sys"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc2f5402d3d0e79a069714f7b48e3ecc60be7775a2c049cb839457457a239532"
+dependencies = [
+ "cc",
+ "libc",
+]
 
 [[package]]
 name = "wasm-bindgen"
