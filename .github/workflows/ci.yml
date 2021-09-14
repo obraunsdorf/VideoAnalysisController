@@ -7,17 +7,46 @@ on:
         description: 'enable ssh debugging'     
         required: false
         default: 'false'
+      release_version_tag:
+         description: 'Draft a Github release with version/tag:'     
+         required: false
+         default: ''
 
 name: Continuous integration
 
 jobs:
+  create_release:
+    name: Create release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Create release
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_version_tag != '' }}
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.release_version_tag }}
+          release_name: ${{ github.event.inputs.release_version_tag }}
+          draft: true
+
   Build_and_Test:
+    needs: create_release
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest]
         rust:
           - 1.53.0  # Minimum Supported Rust Version
+        include:
+          - os: windows-latest
+            artifact_name: VACsetup.exe
+            artifact_path: Output/VACsetup.exe
+          - os: ubuntu-latest
+            artifact_name: VideoAnalysisController
+            artifact_path: target/debug/VideoAnalysisController
             
     steps:
       - uses: actions/checkout@v2
@@ -76,3 +105,19 @@ jobs:
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
+          
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_path }}
+          
+      - name: Upload Github Release Artifact
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_version_tag != '' }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ${{ matrix.artifact_path }}
+          asset_name: ${{ matrix.artifact_name }}
+          asset_content_type: application/octet-stream
