@@ -21,8 +21,7 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={pf64}\{#MyAppName}
 DisableProgramGroupPage=yes
-LicenseFile=C:\projects\videoanalysiscontroller\LICENSE
-OutputDir=C:\projects\videoanalysiscontroller
+LicenseFile=LICENSE
 OutputBaseFilename=VACsetup
 Compression=lzma
 SolidCompression=yes
@@ -36,12 +35,11 @@ Name: "german"; MessagesFile: "compiler:Languages\German.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "C:\projects\videoanalysiscontroller\target\release\VideoAnalysisController.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\projects\videoanalysiscontroller\keymap.toml"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\projects\videoanalysiscontroller\ffmpeg-4.1.3-win64-static\bin\ffmpeg.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "target\debug\VideoAnalysisController.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "keymap.toml"; DestDir: "{app}"; Flags: ignoreversion
+Source: "ffmpeg.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
 Name: "{commonprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-

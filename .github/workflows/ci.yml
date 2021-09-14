@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       debug_enabled:
-        description: 'enable upterm debugging'     
+        description: 'enable ssh debugging'     
         required: false
         default: 'false'
 
@@ -65,6 +65,14 @@ jobs:
         with:
           command: clippy
           
+      - name: Innosetup
+        if: matrix.os == 'windows-latest'
+        shell: cmd
+        run: |
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" innosetup.iss
+          
       - name: Setup tmate session
         if: ${{ failure() || github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true' }}
         uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
