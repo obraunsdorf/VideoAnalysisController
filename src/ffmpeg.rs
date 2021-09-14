@@ -86,14 +86,14 @@ pub fn concat(input_dir_path: &Path, output_dir_path: &Path) -> Result<(), Strin
 }
 
 mod test {
-    use crate::ffmpeg::*;
+    use super::*;
     use std::path::Path;
     #[test]
     fn test_ffmpeg_concat() {
         let output_dir_path = Path::new("tests")
             .join("output")
             .join("testvideo.mp4_condensed");
-        std::fs::create_dir_all(&output_dir_path);
+        std::fs::create_dir_all(&output_dir_path).unwrap();
 
         let input_dir_path = Path::new("tests")
             .join("ressources")
@@ -105,9 +105,11 @@ mod test {
             assert!(false);
         }
 
-        let mut entries = std::fs::read_dir(&output_dir_path).unwrap();
-        assert!(entries.next().unwrap().unwrap().file_name() == "condensed_all.mp4");
-        assert!(entries.next().unwrap().unwrap().file_name() == "condensed_defense.mp4");
-        assert!(entries.next().unwrap().unwrap().file_name() == "condensed_offense.mp4");
+        let mut entries: Vec<std::ffi::OsString> = std::fs::read_dir(&output_dir_path).unwrap()
+            . map(|res| res.map(|e| e.file_name()))
+            .collect::<Result<Vec<_>, std::io::Error>>().unwrap();
+        assert!(entries.iter().any(|e| e == "condensed_all.mp4"));
+        assert!(entries.iter().any(|e| e == "condensed_defense.mp4"));
+        assert!(entries.iter().any(|e| e == "condensed_offense.mp4"));
     }
 }
