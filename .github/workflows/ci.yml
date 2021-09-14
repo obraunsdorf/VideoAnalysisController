@@ -120,4 +120,4 @@ jobs:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: ${{ matrix.artifact_path }}
           asset_name: ${{ matrix.artifact_name }}
-          content_type: application/octet-stream
+          asset_content_type: application/octet-stream
