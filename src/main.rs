@@ -15,6 +15,9 @@ mod input;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+mod action_handling;
+use action_handling::ActionHandler;
+
 const CLIP_SUFFIX_OFFENSE: &str = "Off";
 const CLIP_SUFFIX_DEFENSE: &str = "Def";
 
@@ -168,8 +171,13 @@ fn run_with_fltk() {
     vlc_win.end();
     vlc_win.set_color(Color::Black);
 
-    let mut but_play = button::Button::new(320, 545, 80, 40, "Play");
+    let (s, r) = app::channel::<Action>();
+
+    let mut but_play = button::Button::new(320, 545, 80, 40, "Play/Pause");
+    but_play.emit(s, Action::TogglePlayPause);
+    
     let mut but_stop = button::Button::new(400, 545, 80, 40, "Stop");
+    but_stop.emit(s, Action::Stop);
 
     win.end();
     win.show();
@@ -177,10 +185,10 @@ fn run_with_fltk() {
 
     let handle = vlc_win.raw_handle();
 
-   startVLC(Some(app), Some(handle));
+   startVLC(Some((app, r)), Some(handle));
 }
 
-fn startVLC(fltk_app: Option<fltk::app::App>, render_window: Option<WindowHandle>) {
+fn startVLC(fltk_app: Option<(fltk::app::App, fltk::app::Receiver<Action>)>, render_window: Option<WindowHandle>) {
     let args: Vec<String> = std::env::args().collect();
 
     println!("args: {:?}", args);
@@ -210,9 +218,6 @@ fn startVLC(fltk_app: Option<fltk::app::App>, render_window: Option<WindowHandle
         }
         media_paths.push(p);
     }
-    let mut media_iter = media_paths.iter().cycle();
-    let mut path = media_iter.next().unwrap();
-
     let (tx, rx) = channel::<Action>();
 
     input::spawn_input_threads_with_sender(&tx);
@@ -247,9 +252,8 @@ fn startVLC(fltk_app: Option<fltk::app::App>, render_window: Option<WindowHandle
         }
     }*/
 
+   
     let mdp = MediaPlayer::new(&instance).unwrap();
-    let mut md = load_media(&instance, path, &tx);
-    mdp.set_media(&md);
 
     if let Some(handle) = render_window {
         #[cfg(target_os = "windows")]
@@ -267,10 +271,15 @@ fn startVLC(fltk_app: Option<fltk::app::App>, render_window: Option<WindowHandle
             mdp.toggle_fullscreen();
         }
     }
+    
+    
+
+
+    
 
 
 
-   /* if let Some(app) = fltk_app {
+       /* if let Some(app) = fltk_app {
         let (s, r) = app::channel::<Action>();
         while app.wait().unwrap() {
             match r.recv() {
@@ -282,26 +291,31 @@ fn startVLC(fltk_app: Option<fltk::app::App>, render_window: Option<WindowHandle
             }
         }
     }*/
+
+
+    let mut action_handler = ActionHandler::new(&instance, mdp, &media_paths, cutmarks);
     
-    mdp.play().unwrap();
-
-    let mut loop_start: i64 = -1;
-    let mut loop_end: i64 = -1;
-    let mut clipcount = 0;
-
-    let mut clips: BTreeSet<i64> = BTreeSet::new();
-
-   /* let mut marquee_option: MarqueeOption = Default::default();
-    marquee_option.position = Some(0);
-    marquee_option.opacity = Some(70);
-    marquee_option.timeout = Some(1000);*/
-
+    //start playing
+    action_handler.handle(Action::TogglePlayPause);
     loop {
         //std::thread::sleep(Duration::from_millis(100));
         fltk::app::wait_for(0.01).unwrap();
+        
+        /* TODO(obr)!!!!: wieder einkommentieren
         if loop_end != -1 && mdp.get_time().unwrap() >= loop_end {
             mdp.set_time(loop_start);
+        }*/
+
+        if let Some((_app, receiver)) = fltk_app {
+            if let Some(action) = receiver.recv() {
+                if let Err(e) = action_handler.handle(action) {
+                    println!("exiting because of {}", e);
+                    break;
+                }
+            }
         }
+        
+
         let result = rx.try_recv();
         if result.is_err() {
             continue;
@@ -309,307 +323,11 @@ fn startVLC(fltk_app: Option<fltk::app::App>, render_window: Option<WindowHandle
             //break;
         }
         let action = result.unwrap();
-        match action {
-            Action::TogglePlayPause => {
-                if mdp.is_playing() {
-                    mdp.pause();
-                } else {
-                    mdp.play().unwrap();
-                }
-            }
-            Action::Forward(speed) => {
-                /*//mdp.pause();
-                let mut y;
-                if speed < 0.1 {
-                    y = 0.0;
-                } else if speed >= 0.1 {
-                    y = 0.1
-                } else if speed >= 0.2 {
-                    y = 0.2
-                } else if speed >= 0.3 {
-                    y = 0.3
-                } else if speed >= 0.4 {
-                    y = 0.6
-                } else if speed >= 0.5 {
-                    y = 0.8
-                } else if speed >= 0.6 {
-                    y = 1.0
-                } else if speed >= 0.7 {
-                    y = 2.0
-                } else if speed >= 0.8 {
-                    y = 4.0
-                } else if speed >= 0.9 {
-                    y = 8.0
-                } else if speed >= 1.0 {
-                    y = 16.0;
-                }
-                let cur_time = mdp.get_time().unwrap();
-                mdp.set_time(cur_time + speed as i64 * 10);
-                //mdp.pause();*/
-                let new_time = mdp.get_time().unwrap() + (speed * 1000.0) as i64;
-                mdp.set_time(new_time);
-            }
 
-            Action::Rewind(speed) => {
-                let new_time = mdp.get_time().unwrap() - (speed * 1000.0) as i64;
-                mdp.set_time(new_time);
-            }
-
-            Action::IncreaseSpeed => {
-                let current_speed = mdp.get_rate();
-                mdp.set_rate(current_speed + 0.1);
-            }
-
-            Action::DecreaseSpeed => {
-                let current_speed = mdp.get_rate();
-                mdp.set_rate(current_speed - 0.1);
-            }
-
-            Action::ConcatClips => {
-                let s = String::from(path.to_str().unwrap()) + "_clips";
-                let clips_dir_path = Path::new(s.as_str());
-                if clips_dir_path.exists() == false {
-                    std::fs::create_dir(&clips_dir_path).expect("unable to create directory");
-                }
-
-                let s2 = path.to_str().unwrap().to_string() + "_condensed";
-                let condensed_dir_path = Path::new(s2.as_str());
-                std::fs::create_dir(&condensed_dir_path);
-                let result = ffmpeg::concat(clips_dir_path, condensed_dir_path);
-                let msg = if let Err(e) = result {
-                    println!("{}", e);
-                    "error concatenating"
-                } else {
-                    "concatenating clips"
-                };
-
-                //mdp.show_marqee_text(&msg, &marquee_option);
-            }
-
-            Action::CutCurrentLoop(o_d_option) => {
-                clips.insert(loop_start);
-                println!("cutting from {:?} to {:?}...", loop_start, loop_end);
-
-                let s = String::from(path.to_str().unwrap()) + "_clips";
-                let clips_dir_path = Path::new(s.as_str());
-                if clips_dir_path.exists() == false {
-                    std::fs::create_dir(&clips_dir_path).expect("unable to create directory");
-                }
-
-                let mut extension = "";
-                if let Some(s) = path.extension() {
-                    if let Some(ext) = s.to_str() {
-                        extension = ext;
-                    }
-                }
-                let mut out_file_name = loop_start.to_string();
-                let mut user_hint = "";
-                if let Some(off_def) = o_d_option {
-                    match off_def {
-                        ClipOf_O_D::Offense => {
-                            out_file_name.push_str(CLIP_SUFFIX_OFFENSE);
-                            user_hint = " as Offense"
-                        }
-                        ClipOf_O_D::Defense => {
-                            out_file_name.push_str(CLIP_SUFFIX_DEFENSE);
-                            user_hint = " as Defense"
-                        }
-                    }
-                }
-                out_file_name = out_file_name + "." + extension;
-                let out_file_path = clips_dir_path.join(out_file_name);
-
-                assert!(loop_start >= 0 && loop_end > loop_start);
-
-                let start = loop_start as f32 / 1000.0;
-                let end = loop_end as f32 / 1000.0;
-                let duration = end - start;
-
-                if let Ok(child_proc) = Command::new("ffmpeg")
-                    .arg("-ss")
-                    .arg(format!("{}", start))
-                    .arg("-i")
-                    .arg(path)
-                    .arg("-t")
-                    .arg(format!("{}", duration))
-                    .arg("-c")
-                    .arg("copy")
-                    .arg(out_file_path)
-                    .spawn()
-                {
-                    let msg = "cut clip".to_owned() + user_hint;
-                    //mdp.show_marqee_text(&msg, &marquee_option);
-                    println!("command executed: {:?}", child_proc);
-                } else {
-                    //mdp.show_marqee_text("error on creating clip", &marquee_option);
-                }
-
-                loop_start = -1;
-                loop_end = -1;
-            }
-            Action::StartLoop => {
-                match mdp.get_time() {
-                    Some(start) => {
-                        loop_start = start;
-                        if loop_start >= loop_end {
-                            loop_end = -1;
-                        }
-                    }
-                    None => println!("error getting time"),
-                }
-                //mdp.show_marqee_text("start loop", &marquee_option);
-                println!("set loop start at {:?}", loop_start)
-            }
-
-            Action::PreviousClip => {
-                if clips.len() == 0 {
-                    tx.send(Action::PreviousMedia).unwrap();
-                }
-                let cur_time = mdp.get_time().unwrap();
-
-                let mut iter = clips.iter().rev();
-                while let Some(clip) = iter.next() {
-                    if clip <= &cur_time {
-                        if let Some(prev_clip) = iter.next() {
-                            mdp.set_time(*prev_clip);
-                            println!("previous clip from {}", *prev_clip);
-                        } else {
-                            mdp.set_time(*clip);
-                            println!("previous clip from {}", *clip);
-                        }
-                        break;
-                    }
-                }
-            }
-
-            Action::NextClip => {
-                if clips.len() == 0 {
-                    tx.send(Action::NextMedia).unwrap();
-                }
-                let cur_time = mdp.get_time().unwrap();
-                for clip in &mut clips.iter() {
-                    if clip >= &cur_time {
-                        mdp.set_time(*clip);
-                        println!("jumping to clip {}", *clip);
-                        break;
-                    }
-                }
-            }
-
-
-            Action::RestartClip => {
-                if clips.len() == 0 {
-                    tx.send(Action::RestartMedia).unwrap();
-                }
-                let cur_time = mdp.get_time().unwrap();
-                for clip in &mut clips.iter().rev() {
-                    if clip <= &cur_time {
-                        mdp.set_time(*clip);
-                        println!("restarting clip from to {}", *clip);
-                        break;
-                    }
-                }
-            }
-
-
-            Action::PreviousCutmark => {
-                let cur_time = mdp.get_time().unwrap();
-
-                let mut iter = cutmarks.iter().rev();
-                while let Some(cutmark) = iter.next() {
-                    if cutmark <= &cur_time {
-                        if let Some(prev_cutmark) = iter.next() {
-                            mdp.set_time(*prev_cutmark);
-                            println!("previous cutmark from {}", *prev_cutmark);
-                        } else {
-                            mdp.set_time(*cutmark);
-                            println!("previous cutmark from {}", *cutmark);
-                        }
-                        mdp.play();
-                        tx.send(Action::TogglePlayPause).unwrap();
-                        break;
-                    }
-                }
-            }
-
-            Action::NextCutmark => {
-                let cur_time = mdp.get_time().unwrap();
-                for cutmark in &mut cutmarks.iter() {
-                    if cutmark > &cur_time {
-                        mdp.set_time(*cutmark);
-                        mdp.play();
-                        tx.send(Action::TogglePlayPause).unwrap();
-                        println!("jumping to cutmark {}", *cutmark);
-                        break;
-                    }
-                }
-            }
-
-            Action::EndLoop => {
-                match mdp.get_time() {
-                    Some(end) => {
-                        loop_end = end;
-                        if loop_end <= loop_start {
-                            loop_start = -1;
-                        }
-                    }
-
-                    None => println!("error getting time"),
-                }
-                println!("set loop end at {:?}", loop_end);
-                //mdp.show_marqee_text("end loop", &marquee_option);
-                mdp.set_time(loop_start);
-                //check_loop_end(&tx, mdp, loop_start, loop_end);
-            }
-
-            /* Action::CheckLoopEnd(pos) => {
-                let duration = mdp.get_media().unwrap().duration().unwrap();
-                let cur_time = (duration as f64 * pos as f64) as i64;
-                println!("checking loop end: cur_time={:?} loop_end={:?}", cur_time, loop_end);
-                if cur_time >= loop_end {
-                    println!("yes");
-                    tx.send(Action::PreviousClip);
-                } else {
-                    println!("no");
-                }
-            }*/
-            Action::BreakLoop => {
-                //mdp.show_marqee_text("break loop", &marquee_option);
-                loop_end = -1;
-            }
-
-            Action::Stop | Action::NextMedia => {
-                path = media_iter.next().unwrap();
-                md = load_media(&instance, path, &tx);
-                mdp.set_media(&md);
-                mdp.play().unwrap();
-            }
-
-            Action::PreviousMedia => {
-                println!("playing media previous to {:?}", path);
-                let mut previous = media_iter.next().unwrap();
-                while let Some(media) = media_iter.next() {
-                    if media == path {
-                        path = previous;
-                        println!("previous is {:?}", path);
-                        let md = load_media(&instance, path, &tx);
-                        mdp.set_media(&md);
-                        mdp.play().unwrap();
-                        break;
-                    }
-                    previous = media;
-                }
-            }
-
-            Action::RestartMedia => {
-                mdp.set_media(&md);
-                mdp.play().unwrap();
-            }
-
-            Action::Exit => {
-                break;
-            }
-        };
+        if let Err(e) = action_handler.handle(action) {
+            println!("exiting because of: {}", e);
+            break;
+        }
     }
     println!("exiting");
 }
