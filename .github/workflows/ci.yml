@@ -101,7 +101,7 @@ jobs:
           "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" innosetup.iss
           
       - name: Setup tmate session
-        if: ${{ failure() || github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true' }}
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
