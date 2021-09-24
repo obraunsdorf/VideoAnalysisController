@@ -15,6 +15,9 @@ use std::path::PathBuf;
 mod action_handling;
 use action_handling::ActionHandler;
 
+#[cfg(target_os = "windows")]
+use libc::c_void;
+
 const CLIP_SUFFIX_OFFENSE: &str = "Off";
 const CLIP_SUFFIX_DEFENSE: &str = "Def";
 

@@ -1,7 +1,7 @@
 //use crossterm::{RawScreen, AsyncReader, InputEvent, KeyEvent, SyncReader};
 
 use super::super::Action;
-use super::super::ClipOf_O_D;
+use super::super::ClipType;
 
 use std::collections::BTreeMap;
 use std::iter::Map;
@@ -113,11 +113,11 @@ fn default_keymap() -> BTreeMap<i32, Option<Action>> {
     map.insert(Key::B as i32, Some(Action::BreakLoop));
     map.insert(
         Key::O as i32,
-        Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))),
+        Some(Action::CutCurrentLoop(Some(ClipType::Offense))),
     );
     map.insert(
         Key::D as i32,
-        Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense))),
+        Some(Action::CutCurrentLoop(Some(ClipType::Defense))),
     );
     map.insert(Key::C as i32, Some(Action::CutCurrentLoop(None)));
     map.insert(Key::I as i32, Some(Action::NextMedia));
@@ -172,20 +172,20 @@ fn key_map_from_config(config_file_path: &str) -> Result<BTreeMap<i32, Option<Ac
         }
 
         if let Some(x) =
-            config_tree.get::<String>(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense)).into())
+            config_tree.get::<String>(Action::CutCurrentLoop(Some(ClipType::Offense)).into())
         {
             map.insert(
                 translate_key_id(x)?,
-                Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))),
+                Some(Action::CutCurrentLoop(Some(ClipType::Offense))),
             );
         }
 
         if let Some(x) =
-            config_tree.get::<String>(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense)).into())
+            config_tree.get::<String>(Action::CutCurrentLoop(Some(ClipType::Defense)).into())
         {
             map.insert(
                 translate_key_id(x)?,
-                Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense))),
+                Some(Action::CutCurrentLoop(Some(ClipType::Defense))),
             );
         }
 
@@ -284,8 +284,8 @@ pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
     .add_global_hotkey(Action::StartLoop, Key::T)
     .add_global_hotkey(Action::EndLoop, Key::Z)
     .add_global_hotkey(Action::BreakLoop, Key::B)
-    .add_global_hotkey(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense)), Key::D)
-    .add_global_hotkey(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense)), Key::O)
+    .add_global_hotkey(Action::CutCurrentLoop(Some(ClipType::Defense)), Key::D)
+    .add_global_hotkey(Action::CutCurrentLoop(Some(ClipType::Offense)), Key::O)
     .add_global_hotkey(Action::CutCurrentLoop(None), Key::C)
     .add_global_hotkey(Action::NextMedia, Key::I)
     .add_global_hotkey(Action::PreviousMedia, Key::K)
