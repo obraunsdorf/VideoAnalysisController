@@ -1,19 +1,17 @@
 use std::collections::btree_set::BTreeSet;
-use std::process::Command;
-use std::string::{String, ToString};
+
+use std::string::{String};
 use std::sync::mpsc::channel;
 use fltk::*;
-use libc::c_void;
+
 use std::convert::TryInto;
 
-use vlc::{
-    Event, EventType, Instance, Media, MediaPlayer, MediaPlayerVideoEx, State,
-};
+use vlc::{Instance, MediaPlayer, MediaPlayerVideoEx};
 
 pub mod ffmpeg;
 mod input;
-use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::path::PathBuf;
+
 
 mod action_handling;
 use action_handling::ActionHandler;
@@ -22,7 +20,7 @@ const CLIP_SUFFIX_OFFENSE: &str = "Off";
 const CLIP_SUFFIX_DEFENSE: &str = "Def";
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
-pub enum ClipOf_O_D {
+pub enum ClipType {
     Offense,
     Defense,
 }
@@ -38,7 +36,7 @@ pub enum Action {
     EndLoop,
     BreakLoop,
     //CheckLoopEnd(f32),
-    CutCurrentLoop(Option<ClipOf_O_D>),
+    CutCurrentLoop(Option<ClipType>),
     NextMedia,
     PreviousMedia,
     RestartMedia,
@@ -63,8 +61,8 @@ impl Into<&str> for Action {
             Action::EndLoop => "EndLoop",
             Action::BreakLoop => "BreakLoop",
             Action::CutCurrentLoop(od) => match od {
-                Some(ClipOf_O_D::Offense) => "CutLoop_Offense",
-                Some(ClipOf_O_D::Defense) => "CutLoop_Defense",
+                Some(ClipType::Offense) => "CutLoop_Offense",
+                Some(ClipType::Defense) => "CutLoop_Defense",
                 None => "CutLoop",
             },
             Action::NextMedia => "NextMedia",
@@ -81,9 +79,6 @@ impl Into<&str> for Action {
         }
     }
 }
-
-static MAX_SPEED: f32 = 16.0;
-static BREAKPOINT: f32 = 0.5;
 
 const VIDEO_EXTENSIONS: &[&str] = &["MOV", "MPEG", "MP4"];
 
@@ -115,6 +110,7 @@ const VIDEO_EXTENSIONS: &[&str] = &["MOV", "MPEG", "MP4"];
     });
 }*/
 
+/*
 fn load_media(
     vlc_instance: &vlc::Instance,
     path: &Path,
@@ -122,7 +118,7 @@ fn load_media(
 ) -> Media {
     //let md = Media::new_location(&instance, "https://www.youtube.com/watch?v=M3Q8rIgveO0").unwrap();
     let tx = tx_0.clone();
-    let tx_2 = tx_0.clone();
+    let _tx_2 = tx_0.clone();
     let md = Media::new_path(&vlc_instance, path).unwrap();
     let em = md.event_manager();
     let _ = em.attach(EventType::MediaStateChanged, move |e, _| match e {
@@ -149,6 +145,7 @@ fn load_media(
 
     return md;
 }
+ */
 
 
 fn main() {
@@ -185,10 +182,10 @@ fn run_with_fltk() {
 
     let handle = vlc_win.raw_handle();
 
-   startVLC(Some((app, r)), Some(handle));
+   start_vlc(Some((app, r)), Some(handle));
 }
 
-fn startVLC(fltk_app: Option<(fltk::app::App, fltk::app::Receiver<Action>)>, render_window: Option<WindowHandle>) {
+fn start_vlc(fltk_app: Option<(fltk::app::App, fltk::app::Receiver<Action>)>, render_window: Option<WindowHandle>) {
     let args: Vec<String> = std::env::args().collect();
 
     println!("args: {:?}", args);
@@ -224,7 +221,7 @@ fn startVLC(fltk_app: Option<(fltk::app::App, fltk::app::Receiver<Action>)>, ren
 
     let cutmarks: BTreeSet<i64> = {
         //TODO: execute AutoCutMarks and read from result file
-        let cutmark_frames = vec![255, 1057, 2222];
+        let _cutmark_frames = vec![255, 1057, 2222];
         /*let fps = 30;
         let cutmark_times = cutmark_frames.iter().map(move |frame| frame*fps);*/
 
@@ -296,7 +293,7 @@ fn startVLC(fltk_app: Option<(fltk::app::App, fltk::app::Receiver<Action>)>, ren
     let mut action_handler = ActionHandler::new(&instance, mdp, &media_paths, cutmarks);
     
     //start playing
-    action_handler.handle(Action::TogglePlayPause);
+    action_handler.handle(Action::TogglePlayPause).unwrap();
     loop {
         //std::thread::sleep(Duration::from_millis(100));
         fltk::app::wait_for(0.01).unwrap();

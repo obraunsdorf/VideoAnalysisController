@@ -1,7 +1,7 @@
 use gilrs::{Button, Event, EventType, Gilrs};
 
 use super::super::Action;
-use super::super::ClipOf_O_D;
+use super::super::ClipType;
 use std::collections::HashMap;
 
 fn long_press_map(btn: Button) -> Option<Action> {
@@ -26,8 +26,8 @@ fn short_press_map(btn: Button) -> Option<Action> {
         Button::RightTrigger => Some(Action::IncreaseSpeed),
         Button::DPadRight => Some(Action::NextClip),
         Button::DPadLeft => Some(Action::RestartClip),
-        Button::DPadUp => Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Offense))),
-        Button::DPadDown => Some(Action::CutCurrentLoop(Some(ClipOf_O_D::Defense))),
+        Button::DPadUp => Some(Action::CutCurrentLoop(Some(ClipType::Offense))),
+        Button::DPadDown => Some(Action::CutCurrentLoop(Some(ClipType::Defense))),
         _ => None,
     }
 }

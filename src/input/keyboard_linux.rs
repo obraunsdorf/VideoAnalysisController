@@ -1,7 +1,7 @@
 use super::super::Action;
 use inputbot;
 
-pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
+pub fn read_keyboard(_tx: std::sync::mpsc::Sender<Action>) {
     println!("controlling VAC from keyboard is not implemented, yet");
 
     inputbot::KeybdKey::SpaceKey.bind(move || {

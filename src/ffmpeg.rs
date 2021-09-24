@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
-use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+
+use std::io::{Write};
 use std::path::Path;
 use std::process::Command;
 
@@ -105,7 +105,7 @@ mod test {
             assert!(false);
         }
 
-        let mut entries: Vec<std::ffi::OsString> = std::fs::read_dir(&output_dir_path).unwrap()
+        let entries: Vec<std::ffi::OsString> = std::fs::read_dir(&output_dir_path).unwrap()
             . map(|res| res.map(|e| e.file_name()))
             .collect::<Result<Vec<_>, std::io::Error>>().unwrap();
         assert!(entries.iter().any(|e| e == "condensed_all.mp4"));

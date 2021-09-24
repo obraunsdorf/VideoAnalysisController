@@ -1,8 +1,8 @@
 use std::{collections::BTreeSet, iter::Cycle, path::{Path, PathBuf}, process::Command};
 
-use vlc::{Media, MediaPlayer};
+use vlc::{MediaPlayer};
 
-use crate::{CLIP_SUFFIX_DEFENSE, CLIP_SUFFIX_OFFENSE, ClipOf_O_D, ffmpeg};
+use crate::{CLIP_SUFFIX_DEFENSE, CLIP_SUFFIX_OFFENSE, ClipType, ffmpeg};
 
 use super::Action;
 
@@ -15,17 +15,16 @@ pub(super) struct ActionHandler<'vlc> {
     cutmarks: BTreeSet<i64>,
     loop_start: i64,
     loop_end: i64,
-    clipcount: i64,
 }
 
 
 impl ActionHandler<'_> {
     pub(super)fn new<'vlc>(vlc_instance: &'vlc vlc::Instance, mdp: MediaPlayer, media_paths: &'vlc Vec<PathBuf>, cutmarks: BTreeSet<i64>) -> ActionHandler<'vlc> {
         let mut media_iter = media_paths.iter().cycle();
-        let mut current_media_path = media_iter.next().unwrap();
+        let current_media_path = media_iter.next().unwrap();
 
 
-        let mut clips: BTreeSet<i64> = BTreeSet::new();
+        let clips: BTreeSet<i64> = BTreeSet::new();
         /*
             maybe use "load_media" method for attaching to event manager? 
             let mut md = load_media(&vlc_instance, current_media_path, &tx);       
@@ -51,7 +50,6 @@ impl ActionHandler<'_> {
             cutmarks,
             loop_start: -1,
             loop_end: -1,
-            clipcount: 0
         }
     }
 
@@ -104,12 +102,12 @@ impl ActionHandler<'_> {
         
             Action::IncreaseSpeed => {
                 let current_speed = self.mdp.get_rate();
-                self.mdp.set_rate(current_speed + 0.1);
+                self.mdp.set_rate(current_speed + 0.1).unwrap();
             }
         
             Action::DecreaseSpeed => {
                 let current_speed = self.mdp.get_rate();
-                self.mdp.set_rate(current_speed - 0.1);
+                self.mdp.set_rate(current_speed - 0.1).unwrap();
             }
         
             Action::ConcatClips => {
@@ -121,9 +119,9 @@ impl ActionHandler<'_> {
         
                 let s2 = self.current_media_path.to_str().unwrap().to_string() + "_condensed";
                 let condensed_dir_path = Path::new(s2.as_str());
-                std::fs::create_dir(&condensed_dir_path);
+                std::fs::create_dir(&condensed_dir_path).unwrap();
                 let result = ffmpeg::concat(clips_dir_path, condensed_dir_path);
-                let msg = if let Err(e) = result {
+                let _msg = if let Err(e) = result {
                     println!("{}", e);
                     "error concatenating"
                 } else {
@@ -153,11 +151,11 @@ impl ActionHandler<'_> {
                 let mut user_hint = "";
                 if let Some(off_def) = o_d_option {
                     match off_def {
-                        ClipOf_O_D::Offense => {
+                        ClipType::Offense => {
                             out_file_name.push_str(CLIP_SUFFIX_OFFENSE);
                             user_hint = " as Offense"
                         }
-                        ClipOf_O_D::Defense => {
+                        ClipType::Defense => {
                             out_file_name.push_str(CLIP_SUFFIX_DEFENSE);
                             user_hint = " as Defense"
                         }
@@ -184,7 +182,7 @@ impl ActionHandler<'_> {
                     .arg(out_file_path)
                     .spawn()
                 {
-                    let msg = "cut clip".to_owned() + user_hint;
+                    let _msg = "cut clip".to_owned() + user_hint;
                     //self.mdp.show_marqee_text(&msg, &marquee_option);
                     println!("command executed: {:?}", child_proc);
                 } else {
@@ -287,7 +285,7 @@ impl ActionHandler<'_> {
                 for cutmark in &mut self.cutmarks.iter() {
                     if cutmark > &cur_time {
                         self.mdp.set_time(*cutmark);
-                        self.mdp.play();
+                        self.mdp.play().unwrap();
                         //tx.send(Action::TogglePlayPause).unwrap();
                         println!("jumping to cutmark {}", *cutmark);
                         break;
