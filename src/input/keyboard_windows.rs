@@ -339,6 +339,7 @@ pub fn read_keyboard(tx: std::sync::mpsc::Sender<Action>) {
     }*/
 }
 
+#[cfg(test)]
 mod test {
     use super::*;
     use crate::Action;

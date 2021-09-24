@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use std::io::{Write};
+use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 
@@ -85,6 +85,7 @@ pub fn concat(input_dir_path: &Path, output_dir_path: &Path) -> Result<(), Strin
     result
 }
 
+#[cfg(test)]
 mod test {
     use super::*;
     use std::path::Path;
@@ -105,9 +106,11 @@ mod test {
             assert!(false);
         }
 
-        let entries: Vec<std::ffi::OsString> = std::fs::read_dir(&output_dir_path).unwrap()
-            . map(|res| res.map(|e| e.file_name()))
-            .collect::<Result<Vec<_>, std::io::Error>>().unwrap();
+        let entries: Vec<std::ffi::OsString> = std::fs::read_dir(&output_dir_path)
+            .unwrap()
+            .map(|res| res.map(|e| e.file_name()))
+            .collect::<Result<Vec<_>, std::io::Error>>()
+            .unwrap();
         assert!(entries.iter().any(|e| e == "condensed_all.mp4"));
         assert!(entries.iter().any(|e| e == "condensed_defense.mp4"));
         assert!(entries.iter().any(|e| e == "condensed_offense.mp4"));

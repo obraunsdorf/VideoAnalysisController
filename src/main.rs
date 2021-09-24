@@ -1,8 +1,8 @@
 use std::collections::btree_set::BTreeSet;
 
-use std::string::{String};
-use std::sync::mpsc::channel;
 use fltk::*;
+use std::string::String;
+use std::sync::mpsc::channel;
 
 use std::convert::TryInto;
 
@@ -11,7 +11,6 @@ use vlc::{Instance, MediaPlayer, MediaPlayerVideoEx};
 pub mod ffmpeg;
 mod input;
 use std::path::PathBuf;
-
 
 mod action_handling;
 use action_handling::ActionHandler;
@@ -147,7 +146,6 @@ fn load_media(
 }
  */
 
-
 fn main() {
     //startVLC(None, None);
     run_with_fltk();
@@ -172,7 +170,7 @@ fn run_with_fltk() {
 
     let mut but_play = button::Button::new(320, 545, 80, 40, "Play/Pause");
     but_play.emit(s, Action::TogglePlayPause);
-    
+
     let mut but_stop = button::Button::new(400, 545, 80, 40, "Stop");
     but_stop.emit(s, Action::Stop);
 
@@ -182,10 +180,13 @@ fn run_with_fltk() {
 
     let handle = vlc_win.raw_handle();
 
-   start_vlc(Some((app, r)), Some(handle));
+    start_vlc(Some((app, r)), Some(handle));
 }
 
-fn start_vlc(fltk_app: Option<(fltk::app::App, fltk::app::Receiver<Action>)>, render_window: Option<WindowHandle>) {
+fn start_vlc(
+    fltk_app: Option<(fltk::app::App, fltk::app::Receiver<Action>)>,
+    render_window: Option<WindowHandle>,
+) {
     let args: Vec<String> = std::env::args().collect();
 
     println!("args: {:?}", args);
@@ -234,13 +235,13 @@ fn start_vlc(fltk_app: Option<(fltk::app::App, fltk::app::Receiver<Action>)>, re
         set
     };
 
-    //let instance = Instance::new().unwrap();
-    let vlc_args: Vec<String> = vec![
+    let instance = Instance::new().unwrap();
+    /*let vlc_args: Vec<String> = vec![
         String::from("--verbose=1"),
         String::from("--file-logging"),
         String::from("--logfile=libvlc.log"),
-    ];
-    let instance = Instance::with_args(Some(vlc_args)).unwrap();
+    ];*/
+    //let instance = Instance::with_args(Some(vlc_args)).unwrap();
     //instance.add_intf("qt");
 
     /*if let Some(filter_list) = instance.video_filter_list_get() {
@@ -249,7 +250,6 @@ fn start_vlc(fltk_app: Option<(fltk::app::App, fltk::app::Receiver<Action>)>, re
         }
     }*/
 
-   
     let mdp = MediaPlayer::new(&instance).unwrap();
 
     if let Some(handle) = render_window {
@@ -268,15 +268,8 @@ fn start_vlc(fltk_app: Option<(fltk::app::App, fltk::app::Receiver<Action>)>, re
             mdp.toggle_fullscreen();
         }
     }
-    
-    
 
-
-    
-
-
-
-       /* if let Some(app) = fltk_app {
+    /* if let Some(app) = fltk_app {
         let (s, r) = app::channel::<Action>();
         while app.wait().unwrap() {
             match r.recv() {
@@ -289,15 +282,14 @@ fn start_vlc(fltk_app: Option<(fltk::app::App, fltk::app::Receiver<Action>)>, re
         }
     }*/
 
-
     let mut action_handler = ActionHandler::new(&instance, mdp, &media_paths, cutmarks);
-    
+
     //start playing
     action_handler.handle(Action::TogglePlayPause).unwrap();
     loop {
         //std::thread::sleep(Duration::from_millis(100));
         fltk::app::wait_for(0.01).unwrap();
-        
+
         /* TODO(obr)!!!!: wieder einkommentieren
         if loop_end != -1 && mdp.get_time().unwrap() >= loop_end {
             mdp.set_time(loop_start);
@@ -311,7 +303,6 @@ fn start_vlc(fltk_app: Option<(fltk::app::App, fltk::app::Receiver<Action>)>, re
                 }
             }
         }
-        
 
         let result = rx.try_recv();
         if result.is_err() {

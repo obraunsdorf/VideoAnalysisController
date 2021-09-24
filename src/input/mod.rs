@@ -10,7 +10,6 @@ use super::Action;
 use std::sync::mpsc::channel;
 use std::thread;
 
-
 pub fn spawn_input_threads_with_sender(tx_orig: &std::sync::mpsc::Sender<Action>) {
     let tx_keyboard = tx_orig.clone();
     let (_keyboard_control_tx, _keyboard_control_rx) = channel::<()>();

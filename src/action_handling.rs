@@ -1,8 +1,13 @@
-use std::{collections::BTreeSet, iter::Cycle, path::{Path, PathBuf}, process::Command};
+use std::{
+    collections::BTreeSet,
+    iter::Cycle,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
-use vlc::{MediaPlayer};
+use vlc::MediaPlayer;
 
-use crate::{CLIP_SUFFIX_DEFENSE, CLIP_SUFFIX_OFFENSE, ClipType, ffmpeg};
+use crate::{ffmpeg, ClipType, CLIP_SUFFIX_DEFENSE, CLIP_SUFFIX_OFFENSE};
 
 use super::Action;
 
@@ -17,29 +22,30 @@ pub(super) struct ActionHandler<'vlc> {
     loop_end: i64,
 }
 
-
 impl ActionHandler<'_> {
-    pub(super)fn new<'vlc>(vlc_instance: &'vlc vlc::Instance, mdp: MediaPlayer, media_paths: &'vlc Vec<PathBuf>, cutmarks: BTreeSet<i64>) -> ActionHandler<'vlc> {
+    pub(super) fn new<'vlc>(
+        vlc_instance: &'vlc vlc::Instance,
+        mdp: MediaPlayer,
+        media_paths: &'vlc Vec<PathBuf>,
+        cutmarks: BTreeSet<i64>,
+    ) -> ActionHandler<'vlc> {
         let mut media_iter = media_paths.iter().cycle();
         let current_media_path = media_iter.next().unwrap();
 
-
         let clips: BTreeSet<i64> = BTreeSet::new();
         /*
-            maybe use "load_media" method for attaching to event manager? 
-            let mut md = load_media(&vlc_instance, current_media_path, &tx);       
+            maybe use "load_media" method for attaching to event manager?
+            let mut md = load_media(&vlc_instance, current_media_path, &tx);
         */
         let md = vlc::Media::new_path(&vlc_instance, current_media_path).unwrap();
         mdp.set_media(&md);
-        
 
-        /*  // Initialize VLC Marquee -- maybe we don't need this anymore with FLTK 
+        /*  // Initialize VLC Marquee -- maybe we don't need this anymore with FLTK
             let mut marquee_option: MarqueeOption = Default::default();
             marquee_option.position = Some(0);
             marquee_option.opacity = Some(70);
             marquee_option.timeout = Some(1000);
         */
-
 
         ActionHandler {
             vlc_instance,
@@ -53,7 +59,7 @@ impl ActionHandler<'_> {
         }
     }
 
-    pub(super) fn handle(&mut self, action: Action) -> Result<(), &'static str>{
+    pub(super) fn handle(&mut self, action: Action) -> Result<(), &'static str> {
         match action {
             Action::TogglePlayPause => {
                 if self.mdp.is_playing() {
@@ -94,29 +100,29 @@ impl ActionHandler<'_> {
                 let new_time = self.mdp.get_time().unwrap() + (speed * 1000.0) as i64;
                 self.mdp.set_time(new_time);
             }
-        
+
             Action::Rewind(speed) => {
                 let new_time = self.mdp.get_time().unwrap() - (speed * 1000.0) as i64;
                 self.mdp.set_time(new_time);
             }
-        
+
             Action::IncreaseSpeed => {
                 let current_speed = self.mdp.get_rate();
                 self.mdp.set_rate(current_speed + 0.1).unwrap();
             }
-        
+
             Action::DecreaseSpeed => {
                 let current_speed = self.mdp.get_rate();
                 self.mdp.set_rate(current_speed - 0.1).unwrap();
             }
-        
+
             Action::ConcatClips => {
                 let s = String::from(self.current_media_path.to_str().unwrap()) + "_clips";
                 let clips_dir_path = Path::new(s.as_str());
                 if clips_dir_path.exists() == false {
                     std::fs::create_dir(&clips_dir_path).expect("unable to create directory");
                 }
-        
+
                 let s2 = self.current_media_path.to_str().unwrap().to_string() + "_condensed";
                 let condensed_dir_path = Path::new(s2.as_str());
                 std::fs::create_dir(&condensed_dir_path).unwrap();
@@ -127,20 +133,23 @@ impl ActionHandler<'_> {
                 } else {
                     "concatenating clips"
                 };
-        
+
                 //self.mdp.show_marqee_text(&msg, &marquee_option);
             }
-        
+
             Action::CutCurrentLoop(o_d_option) => {
                 self.clips.insert(self.loop_start);
-                println!("cutting from {:?} to {:?}...", self.loop_start, self.loop_end);
-        
+                println!(
+                    "cutting from {:?} to {:?}...",
+                    self.loop_start, self.loop_end
+                );
+
                 let s = String::from(self.current_media_path.to_str().unwrap()) + "_clips";
                 let clips_dir_path = Path::new(s.as_str());
                 if clips_dir_path.exists() == false {
                     std::fs::create_dir(&clips_dir_path).expect("unable to create directory");
                 }
-        
+
                 let mut extension = "";
                 if let Some(s) = self.current_media_path.extension() {
                     if let Some(ext) = s.to_str() {
@@ -163,13 +172,13 @@ impl ActionHandler<'_> {
                 }
                 out_file_name = out_file_name + "." + extension;
                 let out_file_path = clips_dir_path.join(out_file_name);
-        
+
                 assert!(self.loop_start >= 0 && self.loop_end > self.loop_start);
-        
+
                 let start = self.loop_start as f32 / 1000.0;
                 let end = self.loop_end as f32 / 1000.0;
                 let duration = end - start;
-        
+
                 if let Ok(child_proc) = Command::new("ffmpeg")
                     .arg("-ss")
                     .arg(format!("{}", start))
@@ -188,7 +197,7 @@ impl ActionHandler<'_> {
                 } else {
                     //self.mdp.show_marqee_text("error on creating clip", &marquee_option);
                 }
-        
+
                 self.loop_start = -1;
                 self.loop_end = -1;
             }
@@ -205,13 +214,13 @@ impl ActionHandler<'_> {
                 //self.mdp.show_marqee_text("start loop", &marquee_option);
                 println!("set loop start at {:?}", self.loop_start)
             }
-        
+
             Action::PreviousClip => {
                 if self.clips.len() == 0 {
                     self.handle(Action::PreviousMedia)?;
                 } else {
                     let cur_time = self.mdp.get_time().unwrap();
-        
+
                     let mut iter = self.clips.iter().rev();
                     while let Some(clip) = iter.next() {
                         if clip <= &cur_time {
@@ -227,7 +236,7 @@ impl ActionHandler<'_> {
                     }
                 }
             }
-        
+
             Action::NextClip => {
                 if self.clips.len() == 0 {
                     self.handle(Action::NextMedia)?;
@@ -242,8 +251,7 @@ impl ActionHandler<'_> {
                     }
                 }
             }
-        
-        
+
             Action::RestartClip => {
                 if self.clips.len() == 0 {
                     self.handle(Action::RestartMedia)?
@@ -258,11 +266,10 @@ impl ActionHandler<'_> {
                     }
                 }
             }
-        
-        
+
             Action::PreviousCutmark => {
                 let cur_time = self.mdp.get_time().unwrap();
-        
+
                 let mut iter = self.cutmarks.iter().rev();
                 while let Some(cutmark) = iter.next() {
                     if cutmark <= &cur_time {
@@ -279,7 +286,7 @@ impl ActionHandler<'_> {
                     }
                 }
             }
-        
+
             Action::NextCutmark => {
                 let cur_time = self.mdp.get_time().unwrap();
                 for cutmark in &mut self.cutmarks.iter() {
@@ -292,7 +299,7 @@ impl ActionHandler<'_> {
                     }
                 }
             }
-        
+
             Action::EndLoop => {
                 match self.mdp.get_time() {
                     Some(end) => {
@@ -301,7 +308,7 @@ impl ActionHandler<'_> {
                             self.loop_start = -1;
                         }
                     }
-        
+
                     None => println!("error getting time"),
                 }
                 println!("set loop end at {:?}", self.loop_end);
@@ -309,7 +316,7 @@ impl ActionHandler<'_> {
                 self.mdp.set_time(self.loop_start);
                 //check_self.loop_end(&tx, self.mdp, self.loop_start, self.loop_end);
             }
-        
+
             /* Action::CheckLoopEnd(pos) => {
                 let duration = self.mdp.get_media().unwrap().duration().unwrap();
                 let cur_time = (duration as f64 * pos as f64) as i64;
@@ -325,18 +332,18 @@ impl ActionHandler<'_> {
                 //self.mdp.show_marqee_text("break loop", &marquee_option);
                 self.loop_end = -1;
             }
-        
+
             Action::Stop | Action::NextMedia => {
                 self.current_media_path = self.media_iter.next().unwrap();
                 /*
-                    maybe use "load_media" method for attaching to event manager? 
-                    md = load_media(&instance, self.current_media_path, &tx);      
+                    maybe use "load_media" method for attaching to event manager?
+                    md = load_media(&instance, self.current_media_path, &tx);
                 */
                 let md = vlc::Media::new_path(&self.vlc_instance, self.current_media_path).unwrap();
                 self.mdp.set_media(&md);
                 self.mdp.play().unwrap();
             }
-        
+
             Action::PreviousMedia => {
                 println!("playing media previous to {:?}", self.current_media_path);
                 let mut previous = self.media_iter.next().unwrap();
@@ -345,10 +352,11 @@ impl ActionHandler<'_> {
                         self.current_media_path = previous;
                         println!("previous is {:?}", self.current_media_path);
                         /*
-                            maybe use "load_media" method for attaching to event manager? 
-                            md = load_media(&instance, self.current_media_path, &tx);      
+                            maybe use "load_media" method for attaching to event manager?
+                            md = load_media(&instance, self.current_media_path, &tx);
                         */
-                        let md = vlc::Media::new_path(&self.vlc_instance, self.current_media_path).unwrap();
+                        let md = vlc::Media::new_path(&self.vlc_instance, self.current_media_path)
+                            .unwrap();
                         self.mdp.set_media(&md);
                         self.mdp.play().unwrap();
                         break;
@@ -356,16 +364,14 @@ impl ActionHandler<'_> {
                     previous = media;
                 }
             }
-        
+
             Action::RestartMedia => {
                 let md = vlc::Media::new_path(&self.vlc_instance, self.current_media_path).unwrap();
                 self.mdp.set_media(&md);
                 self.mdp.play().unwrap();
             }
-        
-            Action::Exit => {
-                return Err("No real error. Just exiting")
-            }
+
+            Action::Exit => return Err("No real error. Just exiting"),
         };
 
         Ok(())
