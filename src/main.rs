@@ -1,6 +1,6 @@
 use std::collections::btree_set::BTreeSet;
 
-use fltk::*;
+use fltk::{dialog::{FileChooserType, FileDialogType}, prelude::*};
 use std::string::String;
 use std::sync::mpsc::channel;
 
@@ -160,22 +160,40 @@ type WindowHandle = *mut c_void;
 #[cfg(target_os = "linux")]
 type WindowHandle = u64;
 
+#[derive(Copy, Clone)]
+enum GuiActions {
+    ChooseACMExe,
+    Analyze,
+    CalibrateNear,
+    CalibrateFar,
+    SetStartFrame,
+    SetEndFrame,
+}
+
 fn run_with_fltk() {
-    let app = app::App::default().with_scheme(app::AppScheme::Gtk);
-    let mut win = window::Window::new(100, 100, 800, 600, "Media Player");
+    let app = fltk::app::App::default().with_scheme(fltk::app::AppScheme::Gtk);
+    let mut win = fltk::window::Window::new(100, 100, 800, 600, "Media Player");
+    //win.fullscreen(true);
 
     // Create inner window to act as embedded media player
-    let mut vlc_win = window::Window::new(10, 10, 780, 520, "");
+    let mut vlc_win = fltk::window::Window::new(10, 10, 780, 520, "");
     vlc_win.end();
-    vlc_win.set_color(Color::Black);
+    vlc_win.set_color(fltk::enums::Color::Black);
 
-    let (s, r) = app::channel::<Action>();
+    let (s, r) = fltk::app::channel::<GuiActions>();
 
-    let mut but_play = button::Button::new(320, 545, 80, 40, "Play/Pause");
-    but_play.emit(s, Action::TogglePlayPause);
+    let mut button_acm_exe = fltk::button::Button::new(180, 545, 200, 40, "Choose ACM Executable..");
+    button_acm_exe.emit(s, GuiActions::ChooseACMExe);
+  
+    let mut button_analyze = fltk::button::Button::new(420, 545, 80, 40, "Analyze");
+    button_analyze.emit(s, GuiActions::Analyze);
 
-    let mut but_stop = button::Button::new(400, 545, 80, 40, "Stop");
-    but_stop.emit(s, Action::Stop);
+    let mut button_calibrate_near = fltk::button::Button::new(500, 545, 80, 40, "Calibrate Near");
+    button_calibrate_near.emit(s, GuiActions::CalibrateNear);
+
+    let mut start_frame_input = fltk::input::IntInput::new(0, 545, 50, 40, "start frame");
+    let mut start_frame_button = fltk::button::Button::new(0, 585, 50, 40, "set start frame");
+    start_frame_button.emit(s, GuiActions::SetStartFrame);
 
     win.end();
     win.show();
@@ -183,11 +201,11 @@ fn run_with_fltk() {
 
     let handle = vlc_win.raw_handle();
 
-    start_vlc(Some((app, r)), Some(handle));
+    start_vlc(Some((app, r, start_frame_input)), Some(handle));
 }
 
 fn start_vlc(
-    fltk_app: Option<(fltk::app::App, fltk::app::Receiver<Action>)>,
+    mut fltk_app: Option<(fltk::app::App, fltk::app::Receiver<GuiActions>, fltk::input::IntInput)>,
     render_window: Option<WindowHandle>,
 ) {
     let args: Vec<String> = std::env::args().collect();
@@ -261,48 +279,84 @@ fn start_vlc(
 
         #[cfg(target_os = "linux")]
         mdp.set_xwindow(handle.try_into().unwrap()); // TODO unchecked u64 -> u32 conversion
-        println!("############## set window handle ################");
+        
         // Disable event handling on vlc's side
         // Do it thru fltk
-        //mdp.set_key_input(false);
-        //mdp.set_mouse_input(false);
+        mdp.set_key_input(false);
+        mdp.set_mouse_input(false);
     } else {
         if mdp.get_fullscreen() == false {
             mdp.toggle_fullscreen();
         }
     }
 
-    /* if let Some(app) = fltk_app {
-        let (s, r) = app::channel::<Action>();
-        while app.wait().unwrap() {
-            match r.recv() {
-                Some(val) => match val {
-                    Action::TogglePlayPause => mdp.play().unwrap(),
-                    Action::Stop => mdp.stop(),
-                },
-                None => (),
-            }
-        }
-    }*/
-
     let mut action_handler = ActionHandler::new(&instance, mdp, &media_paths, cutmarks);
 
-    //start playing
+    // start playing
     action_handler.handle(Action::TogglePlayPause).unwrap();
+
+    let mut acm_exe_path: Option<PathBuf> = None; 
+
     loop {
         //std::thread::sleep(Duration::from_millis(100));
-        fltk::app::wait_for(0.01).unwrap();
+        let event_happened = fltk::app::wait_for(0.01).unwrap();
+        if event_happened {
+            let event = fltk::app::event();
+            match event {
+                fltk::enums::Event::NoEvent => {}, // happens on windows according to: https://docs.rs/fltk/1.2.3/fltk/app/fn.wait_for.html
+                fltk::enums::Event::Close => {
+                    println!("FLTK main window closed, exiting");
+                    break;
+                }
+                _ => {}
+            }
+        }
+            
+        /*
+        let shortcut = fltk::app::event_state();
+        let a_key = fltk::enums::Key::from_char('a');
+        let a_short = fltk::enums::Shortcut::from_char('a');
+        println!("key for a looks like: {:?}", a_key);
+        println!("shortcut for a looks like: {:?}", a_short);
+        println!("shortcut: {:?}", shortcut);*/
+
+
 
         /* TODO(obr)!!!!: wieder einkommentieren
         if loop_end != -1 && mdp.get_time().unwrap() >= loop_end {
             mdp.set_time(loop_start);
         }*/
 
-        if let Some((_app, receiver)) = fltk_app {
-            if let Some(action) = receiver.recv() {
-                if let Err(e) = action_handler.handle(action) {
-                    println!("exiting because of {}", e);
-                    break;
+        if let Some((_app, receiver, ref mut start_frame_input)) = fltk_app {
+            if let Some(gui_action) = receiver.recv() {
+                match gui_action {
+                    GuiActions::ChooseACMExe => {
+                        let mut acm_exe_chooser = fltk::dialog::FileDialog::new(FileDialogType::BrowseFile);
+                        acm_exe_chooser.show();
+                        acm_exe_path = Some(acm_exe_chooser.filename());  
+                    }
+
+                    GuiActions::Analyze => {
+                        match acm_exe_path {
+                            Some(ref path) => {
+                                let start_frame: i64 = start_frame_input.value().parse().unwrap(); //TODO error handling
+                                analyze_autocutmarks(path, action_handler.get_current_media_path(), start_frame);
+                            }
+
+                            None => {
+                                println!("Executable for AutoCutMarks was not set");
+                            }
+                        }
+                        
+                    }
+
+                    GuiActions::SetStartFrame => {
+                        let start_frame = action_handler.get_current_frame();
+                        let s = start_frame.to_string();
+                        start_frame_input.set_value(&s);
+                    }
+
+                    _ => {}
                 }
             }
         }
@@ -320,5 +374,20 @@ fn start_vlc(
             break;
         }
     }
+
     println!("exiting");
+    std::process::exit(0);
+}
+
+fn analyze_autocutmarks(acm_exe_path: &PathBuf, videofile: &PathBuf, start_frame: i64) {
+    let end_frame = start_frame + 200;
+    let status = 
+        std::process::Command::new("python3")
+        .arg(acm_exe_path)
+        .arg(format!("-s {}", start_frame))
+        .arg(format!("-e {}", end_frame))
+        .arg(videofile)
+        .arg("snaps.txt")
+        .status().unwrap();
+    assert!(status.success() == true);  // TODO: error handling
 }

@@ -10,7 +10,7 @@ vlc-rs = { git  = "https://code.videolan.org/mfkl/vlc-rs.git" }
 gilrs = "0.7.1"
 configuration = "0.7.2"
 #clap = "2.33.3"
-fltk = { version = "0.7.22", features = ["fltk-bundled"] }
+fltk = { version = "1.2.3", features = ["fltk-bundled"] }
 libc = "0.2.101"
 
 [target.'cfg(windows)'.dependencies]

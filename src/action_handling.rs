@@ -22,8 +22,8 @@ pub(super) struct ActionHandler<'vlc> {
     loop_end: i64,
 }
 
-impl ActionHandler<'_> {
-    pub(super) fn new<'vlc>(
+impl<'vlc> ActionHandler<'vlc> {
+    pub(super) fn new(
         vlc_instance: &'vlc vlc::Instance,
         mdp: MediaPlayer,
         media_paths: &'vlc Vec<PathBuf>,
@@ -57,6 +57,18 @@ impl ActionHandler<'_> {
             loop_start: -1,
             loop_end: -1,
         }
+    }
+
+    pub(super) fn get_current_media_path(&self) -> &'vlc PathBuf {
+        self.current_media_path
+    }
+
+    pub(super) fn get_current_frame(&self) -> i64 {
+        let time = self.mdp.get_time().unwrap() as f32; // in millisecons
+        let fps = unsafe {vlc::sys::libvlc_media_player_get_fps(self.mdp.raw())};
+        let frame = time / 1000.0 * fps;  // TODO: do we need to check for overflow with floats?
+        
+        frame as i64
     }
 
     pub(super) fn handle(&mut self, action: Action) -> Result<(), &'static str> {
