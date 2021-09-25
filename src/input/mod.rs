@@ -1,13 +1,11 @@
 pub(crate) mod controller;
 pub(crate) mod keyboard_fltk;
 
-
 #[cfg(target_os = "windows")]
 pub mod keyboard_windows;
 
 #[cfg(target_os = "linux")]
 pub mod keyboard_linux;
-
 
 use super::Action;
 use std::sync::mpsc::channel;

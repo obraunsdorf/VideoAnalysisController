@@ -1,5 +1,5 @@
-use std::collections::BTreeMap;
 use fltk::enums::Key;
+use std::collections::BTreeMap;
 
 use crate::{Action, ClipType};
 
@@ -40,9 +40,13 @@ pub(crate) fn action_from_pressed_key(key: fltk::enums::Key) -> Option<Action> {
     let keymap = default_keymap();
     println!("key {} pressed", key.bits() as u32);
     if let Some(action_option) = keymap.get(&key) {
-        println!("key {} yields action {:?}", key.bits() as u32, action_option);
-        return action_option.clone()
+        println!(
+            "key {} yields action {:?}",
+            key.bits() as u32,
+            action_option
+        );
+        return action_option.clone();
     } else {
-        return None
+        return None;
     }
 }

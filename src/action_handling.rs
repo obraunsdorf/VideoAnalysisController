@@ -64,16 +64,16 @@ impl<'vlc> ActionHandler<'vlc> {
             self.mdp.set_time(self.loop_start);
         }
     }
-    
+
     pub(super) fn get_current_media_path(&self) -> &'vlc PathBuf {
         self.current_media_path
     }
 
     pub(super) fn get_current_frame(&self) -> i64 {
         let time = self.mdp.get_time().unwrap() as f32; // in millisecons
-        let fps = unsafe {vlc::sys::libvlc_media_player_get_fps(self.mdp.raw())};
-        let frame = time / 1000.0 * fps;  // TODO: do we need to check for overflow with floats?
-        
+        let fps = unsafe { vlc::sys::libvlc_media_player_get_fps(self.mdp.raw()) };
+        let frame = time / 1000.0 * fps; // TODO: do we need to check for overflow with floats?
+
         frame as i64
     }
 
