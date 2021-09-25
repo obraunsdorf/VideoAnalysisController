@@ -1,6 +1,6 @@
 use std::collections::btree_set::BTreeSet;
 
-use fltk::{dialog::{FileChooserType, FileDialogType}, prelude::*};
+use fltk::{dialog::{FileDialogType}, prelude::*};
 use std::string::String;
 use std::sync::mpsc::channel;
 
@@ -17,6 +17,8 @@ use action_handling::ActionHandler;
 
 #[cfg(target_os = "windows")]
 use libc::c_void;
+
+use crate::input::keyboard_fltk::action_from_pressed_key;
 
 const CLIP_SUFFIX_OFFENSE: &str = "Off";
 const CLIP_SUFFIX_DEFENSE: &str = "Def";
@@ -165,9 +167,9 @@ enum GuiActions {
     ChooseACMExe,
     Analyze,
     CalibrateNear,
-    CalibrateFar,
+    //CalibrateFar,
     SetStartFrame,
-    SetEndFrame,
+    //SetEndFrame,
 }
 
 fn run_with_fltk() {
@@ -192,20 +194,47 @@ fn run_with_fltk() {
     button_calibrate_near.emit(s, GuiActions::CalibrateNear);
 
     let mut start_frame_input = fltk::input::IntInput::new(0, 545, 50, 40, "start frame");
+    start_frame_input.handle(|_w, event| {
+        if event == fltk::enums::Event::Focus {
+            return true
+        } else {
+            return false
+        }
+    });
     let mut start_frame_button = fltk::button::Button::new(0, 585, 50, 40, "set start frame");
     start_frame_button.emit(s, GuiActions::SetStartFrame);
 
     win.end();
     win.show();
+
+    let (key_event_sender, key_event_receiver) = fltk::app::channel::<fltk::enums::Key>();
+    win.handle(move |_w, ev| match ev {
+        fltk::enums::Event::NoEvent => false, // happens on windows according to: https://docs.rs/fltk/1.2.3/fltk/app/fn.wait_for.html
+                
+        fltk::enums::Event::Close => {
+            println!("FLTK main window closed, exiting");
+            //TODO(obr): exit the application
+            false
+        }
+
+        fltk::enums::Event::KeyUp => {
+            let key = fltk::app::event_key();
+            key_event_sender.send(key);
+            true
+        }
+
+        _ => false
+    });
+    
     win.make_resizable(true);
 
     let handle = vlc_win.raw_handle();
 
-    start_vlc(Some((app, r, start_frame_input)), Some(handle));
+    start_vlc(Some((app, r, start_frame_input, key_event_receiver)), Some(handle));
 }
 
 fn start_vlc(
-    mut fltk_app: Option<(fltk::app::App, fltk::app::Receiver<GuiActions>, fltk::input::IntInput)>,
+    mut fltk_app: Option<(fltk::app::App, fltk::app::Receiver<GuiActions>, fltk::input::IntInput, fltk::app::Receiver<fltk::enums::Key>,)>,
     render_window: Option<WindowHandle>,
 ) {
     let args: Vec<String> = std::env::args().collect();
@@ -298,37 +327,19 @@ fn start_vlc(
     let mut acm_exe_path: Option<PathBuf> = None; 
 
     loop {
-        //std::thread::sleep(Duration::from_millis(100));
-        let event_happened = fltk::app::wait_for(0.01).unwrap();
-        if event_happened {
-            let event = fltk::app::event();
-            match event {
-                fltk::enums::Event::NoEvent => {}, // happens on windows according to: https://docs.rs/fltk/1.2.3/fltk/app/fn.wait_for.html
-                fltk::enums::Event::Close => {
-                    println!("FLTK main window closed, exiting");
+        let _ = fltk::app::wait_for(0.01).unwrap();
+        
+        action_handler.check_loop_end();
+
+        if let Some((_app, gui_actions_receiver, ref mut start_frame_input, key_event_receiver)) = fltk_app {          
+             if let Some(action) = key_event_receiver.recv().and_then(action_from_pressed_key) {
+                if let Err(e) = action_handler.handle(action) {
+                    println!("exiting because of: {}", e);
                     break;
                 }
-                _ => {}
             }
-        }
             
-        /*
-        let shortcut = fltk::app::event_state();
-        let a_key = fltk::enums::Key::from_char('a');
-        let a_short = fltk::enums::Shortcut::from_char('a');
-        println!("key for a looks like: {:?}", a_key);
-        println!("shortcut for a looks like: {:?}", a_short);
-        println!("shortcut: {:?}", shortcut);*/
-
-
-
-        /* TODO(obr)!!!!: wieder einkommentieren
-        if loop_end != -1 && mdp.get_time().unwrap() >= loop_end {
-            mdp.set_time(loop_start);
-        }*/
-
-        if let Some((_app, receiver, ref mut start_frame_input)) = fltk_app {
-            if let Some(gui_action) = receiver.recv() {
+            if let Some(gui_action) = gui_actions_receiver.recv() {
                 match gui_action {
                     GuiActions::ChooseACMExe => {
                         let mut acm_exe_chooser = fltk::dialog::FileDialog::new(FileDialogType::BrowseFile);

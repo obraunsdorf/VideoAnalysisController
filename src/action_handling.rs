@@ -59,6 +59,12 @@ impl<'vlc> ActionHandler<'vlc> {
         }
     }
 
+    pub(super) fn check_loop_end(&self) {
+        if self.loop_end != -1 && self.mdp.get_time().unwrap() >= self.loop_end {
+            self.mdp.set_time(self.loop_start);
+        }
+    }
+    
     pub(super) fn get_current_media_path(&self) -> &'vlc PathBuf {
         self.current_media_path
     }
