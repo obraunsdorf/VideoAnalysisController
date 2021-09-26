@@ -7,7 +7,7 @@ use std::{
 
 use vlc::MediaPlayer;
 
-use crate::{ffmpeg, ClipType, CLIP_SUFFIX_DEFENSE, CLIP_SUFFIX_OFFENSE};
+use crate::{ffmpeg, ClipType, Cutmarks, CLIP_SUFFIX_DEFENSE, CLIP_SUFFIX_OFFENSE};
 
 use super::Action;
 
@@ -17,7 +17,7 @@ pub(super) struct ActionHandler<'vlc> {
     media_iter: Cycle<std::slice::Iter<'vlc, PathBuf>>,
     current_media_path: &'vlc PathBuf,
     clips: BTreeSet<i64>,
-    cutmarks: BTreeSet<i64>,
+    cutmarks: Option<Box<Cutmarks>>,
     loop_start: i64,
     loop_end: i64,
 }
@@ -27,7 +27,6 @@ impl<'vlc> ActionHandler<'vlc> {
         vlc_instance: &'vlc vlc::Instance,
         mdp: MediaPlayer,
         media_paths: &'vlc Vec<PathBuf>,
-        cutmarks: BTreeSet<i64>,
     ) -> ActionHandler<'vlc> {
         let mut media_iter = media_paths.iter().cycle();
         let current_media_path = media_iter.next().unwrap();
@@ -53,10 +52,14 @@ impl<'vlc> ActionHandler<'vlc> {
             media_iter,
             current_media_path,
             clips,
-            cutmarks,
+            cutmarks: None,
             loop_start: -1,
             loop_end: -1,
         }
+    }
+
+    pub(super) fn set_cutmarks(&mut self, cutmarks: &Box<Cutmarks>) {
+        self.cutmarks = Some(cutmarks.clone());
     }
 
     pub(super) fn check_loop_end(&self) {
@@ -69,9 +72,14 @@ impl<'vlc> ActionHandler<'vlc> {
         self.current_media_path
     }
 
+    pub(super) fn get_fps(&self) -> f32 {
+        //TODO check if media file is running and other safety checks
+        unsafe { vlc::sys::libvlc_media_player_get_fps(self.mdp.raw()) }
+    }
+
     pub(super) fn get_current_frame(&self) -> i64 {
         let time = self.mdp.get_time().unwrap() as f32; // in millisecons
-        let fps = unsafe { vlc::sys::libvlc_media_player_get_fps(self.mdp.raw()) };
+        let fps = self.get_fps();
         let frame = time / 1000.0 * fps; // TODO: do we need to check for overflow with floats?
 
         frame as i64
@@ -288,32 +296,36 @@ impl<'vlc> ActionHandler<'vlc> {
             Action::PreviousCutmark => {
                 let cur_time = self.mdp.get_time().unwrap();
 
-                let mut iter = self.cutmarks.iter().rev();
-                while let Some(cutmark) = iter.next() {
-                    if cutmark <= &cur_time {
-                        if let Some(prev_cutmark) = iter.next() {
-                            self.mdp.set_time(*prev_cutmark);
-                            println!("previous cutmark from {}", *prev_cutmark);
-                        } else {
-                            self.mdp.set_time(*cutmark);
-                            println!("previous cutmark from {}", *cutmark);
+                if let Some(cutmarks) = &self.cutmarks {
+                    let mut iter = cutmarks.iter().rev();
+                    while let Some(cutmark) = iter.next() {
+                        if cutmark <= &cur_time {
+                            if let Some(prev_cutmark) = iter.next() {
+                                self.mdp.set_time(*prev_cutmark);
+                                println!("previous cutmark from {}", *prev_cutmark);
+                            } else {
+                                self.mdp.set_time(*cutmark);
+                                println!("previous cutmark from {}", *cutmark);
+                            }
+                            //self.mdp.play();
+                            //tx.send(Action::TogglePlayPause).unwrap();
+                            break;
                         }
-                        //self.mdp.play();
-                        //tx.send(Action::TogglePlayPause).unwrap();
-                        break;
                     }
                 }
             }
 
             Action::NextCutmark => {
                 let cur_time = self.mdp.get_time().unwrap();
-                for cutmark in &mut self.cutmarks.iter() {
-                    if cutmark > &cur_time {
-                        self.mdp.set_time(*cutmark);
-                        self.mdp.play().unwrap();
-                        //tx.send(Action::TogglePlayPause).unwrap();
-                        println!("jumping to cutmark {}", *cutmark);
-                        break;
+                if let Some(cutmarks) = &self.cutmarks {
+                    for cutmark in &mut cutmarks.iter() {
+                        if cutmark > &cur_time {
+                            self.mdp.set_time(*cutmark);
+                            self.mdp.play().unwrap();
+                            //tx.send(Action::TogglePlayPause).unwrap();
+                            println!("jumping to cutmark {}", *cutmark);
+                            break;
+                        }
                     }
                 }
             }

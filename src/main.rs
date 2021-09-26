@@ -1,6 +1,14 @@
-use std::collections::btree_set::BTreeSet;
+use std::{
+    collections::btree_set::BTreeSet,
+    fs::File,
+    io::{self, BufRead},
+    sync::{
+        mpsc::{Receiver, Sender},
+        Arc, Mutex,
+    },
+};
 
-use fltk::{dialog::FileDialogType, prelude::*};
+use fltk::{dialog::FileDialogType, frame, prelude::*};
 use std::string::String;
 use std::sync::mpsc::channel;
 
@@ -166,45 +174,67 @@ type WindowHandle = u64;
 enum GuiActions {
     ChooseACMExe,
     Analyze,
-    CalibrateNear,
+    AnalyzeCached,
+    //CalibrateNear,
     //CalibrateFar,
     SetStartFrame,
-    //SetEndFrame,
+    SetEndFrame,
+    KeyEvent(fltk::enums::Key),
 }
 
 fn run_with_fltk() {
     let app = fltk::app::App::default().with_scheme(fltk::app::AppScheme::Gtk);
     let mut win = fltk::window::Window::new(100, 100, 800, 600, "Media Player");
-    //win.fullscreen(true);
 
     // Create inner window to act as embedded media player
     let mut vlc_win = fltk::window::Window::new(10, 10, 780, 520, "");
     vlc_win.end();
     vlc_win.set_color(fltk::enums::Color::Black);
 
+    let gui_elements_start_x = 10;
+    let gui_elements_start_y = vlc_win.y() + vlc_win.height() + 10;
+
     let (s, r) = fltk::app::channel::<GuiActions>();
 
-    let mut button_acm_exe =
-        fltk::button::Button::new(180, 545, 200, 40, "Choose ACM Executable..");
-    button_acm_exe.emit(s, GuiActions::ChooseACMExe);
-
-    let mut button_analyze = fltk::button::Button::new(420, 545, 80, 40, "Analyze");
-    button_analyze.emit(s, GuiActions::Analyze);
-
-    let mut button_calibrate_near = fltk::button::Button::new(500, 545, 80, 40, "Calibrate Near");
-    button_calibrate_near.emit(s, GuiActions::CalibrateNear);
-
-    let mut start_frame_input = fltk::input::IntInput::new(0, 545, 50, 40, "start frame");
-    start_frame_input.handle(|_w, event| {
-        if event == fltk::enums::Event::Focus {
-            return true;
-        } else {
-            return false;
-        }
-    });
-    let mut start_frame_button = fltk::button::Button::new(0, 585, 50, 40, "set start frame");
+    let mut start_frame_input = fltk::input::IntInput::new(10, gui_elements_start_y, 100, 30, None);
+    let mut start_frame_button =
+        fltk::button::Button::new(10, gui_elements_start_y + 30, 100, 30, "set start frame");
     start_frame_button.emit(s, GuiActions::SetStartFrame);
 
+    let mut end_frame_input = fltk::input::IntInput::new(110, gui_elements_start_y, 100, 30, None);
+    let mut end_frame_button =
+        fltk::button::Button::new(110, gui_elements_start_y + 30, 100, 30, "set end frame");
+    end_frame_button.emit(s, GuiActions::SetEndFrame);
+
+    let mut button_acm_exe = fltk::button::Button::new(
+        gui_elements_start_x + 300,
+        gui_elements_start_y,
+        200,
+        20,
+        "Choose ACM Executable..",
+    );
+    button_acm_exe.emit(s, GuiActions::ChooseACMExe);
+
+    let mut button_analyze = fltk::button::Button::new(
+        gui_elements_start_x + 300,
+        gui_elements_start_y + 20,
+        80,
+        20,
+        "Analyze",
+    );
+    button_analyze.emit(s, GuiActions::Analyze);
+
+    let mut button_analyze_cached = fltk::button::Button::new(
+        gui_elements_start_x + 300,
+        gui_elements_start_y + 40,
+        80,
+        20,
+        "Analyze cached",
+    );
+    button_analyze_cached.emit(s, GuiActions::AnalyzeCached);
+
+    win.make_resizable(true);
+    //win.fullscreen(true);
     win.end();
     win.show();
 
@@ -220,19 +250,23 @@ fn run_with_fltk() {
 
         fltk::enums::Event::KeyUp => {
             let key = fltk::app::event_key();
-            key_event_sender.send(key);
+            s.send(GuiActions::KeyEvent(key));
             true
         }
 
         _ => false,
     });
 
-    win.make_resizable(true);
-
     let handle = vlc_win.raw_handle();
 
     start_vlc(
-        Some((app, r, start_frame_input, key_event_receiver)),
+        Some((
+            app,
+            r,
+            start_frame_input,
+            end_frame_input,
+            key_event_receiver,
+        )),
         Some(handle),
     );
 }
@@ -241,6 +275,7 @@ fn start_vlc(
     mut fltk_app: Option<(
         fltk::app::App,
         fltk::app::Receiver<GuiActions>,
+        fltk::input::IntInput,
         fltk::input::IntInput,
         fltk::app::Receiver<fltk::enums::Key>,
     )>,
@@ -275,24 +310,9 @@ fn start_vlc(
         }
         media_paths.push(p);
     }
+
     let (tx, rx) = channel::<Action>();
-
     input::spawn_input_threads_with_sender(&tx);
-
-    let cutmarks: BTreeSet<i64> = {
-        //TODO: execute AutoCutMarks and read from result file
-        let _cutmark_frames = vec![255, 1057, 2222];
-        /*let fps = 30;
-        let cutmark_times = cutmark_frames.iter().map(move |frame| frame*fps);*/
-
-        let mut set = BTreeSet::new();
-        set.insert(5102);
-        set.insert(44069);
-        set.insert(66322);
-        set.insert(94823);
-
-        set
-    };
 
     let instance = Instance::new().unwrap();
     /*let vlc_args: Vec<String> = vec![
@@ -328,61 +348,105 @@ fn start_vlc(
         }
     }
 
-    let mut action_handler = ActionHandler::new(&instance, mdp, &media_paths, cutmarks);
+    let mut action_handler = ActionHandler::new(&instance, mdp, &media_paths);
 
     // start playing
     action_handler.handle(Action::TogglePlayPause).unwrap();
 
     let mut acm_exe_path: Option<PathBuf> = None;
 
+    let (tx_cutmarks_ready, rx_cutmarks_ready) = channel::<Arc<Mutex<Box<Cutmarks>>>>();
+
     loop {
-        let _ = fltk::app::wait_for(0.01).unwrap();
+        let event_happened = fltk::app::wait_for(0.01).unwrap();
 
         action_handler.check_loop_end();
 
-        if let Some((_app, gui_actions_receiver, ref mut start_frame_input, key_event_receiver)) =
-            fltk_app
+        if let Ok(cutmark_mutex) = rx_cutmarks_ready.try_recv() {
+            let guard = cutmark_mutex.lock().unwrap();
+            let cutmarks = &*guard;
+            action_handler.set_cutmarks(cutmarks)
+        }
+
+        if let Some((
+            _app,
+            gui_actions_receiver,
+            ref mut start_frame_input,
+            ref mut end_frame_input,
+            key_event_receiver,
+        )) = fltk_app
         {
-            if let Some(action) = key_event_receiver.recv().and_then(action_from_pressed_key) {
-                if let Err(e) = action_handler.handle(action) {
-                    println!("exiting because of: {}", e);
-                    break;
-                }
-            }
+            if event_happened {
+                if let Some(gui_action) = gui_actions_receiver.recv() {
+                    match gui_action {
+                        GuiActions::KeyEvent(key) => {
+                            if let Some(action) = action_from_pressed_key(key) {
+                                if let Err(e) = action_handler.handle(action) {
+                                    println!("exiting because of: {}", e);
+                                    break;
+                                }
+                            }
+                        }
 
-            if let Some(gui_action) = gui_actions_receiver.recv() {
-                match gui_action {
-                    GuiActions::ChooseACMExe => {
-                        let mut acm_exe_chooser =
-                            fltk::dialog::FileDialog::new(FileDialogType::BrowseFile);
-                        acm_exe_chooser.show();
-                        acm_exe_path = Some(acm_exe_chooser.filename());
-                    }
+                        GuiActions::ChooseACMExe => {
+                            let mut acm_exe_chooser =
+                                fltk::dialog::FileDialog::new(FileDialogType::BrowseFile);
+                            acm_exe_chooser.show();
+                            acm_exe_path = Some(acm_exe_chooser.filename());
+                        }
 
-                    GuiActions::Analyze => {
-                        match acm_exe_path {
+                        GuiActions::Analyze => {
+                            match acm_exe_path {
+                                Some(ref path) => {
+                                    let start_frame: i64 =
+                                        start_frame_input.value().parse().unwrap(); //TODO error handling
+                                    let end_frame: i64 = end_frame_input.value().parse().unwrap(); //TODO error handling
+                                    analyze_autocutmarks(
+                                        path,
+                                        action_handler.get_current_media_path(),
+                                        start_frame,
+                                        end_frame,
+                                        action_handler.get_fps(),
+                                        tx_cutmarks_ready.clone(),
+                                    );
+                                }
+
+                                None => {
+                                    println!("Executable for AutoCutMarks was not set");
+                                }
+                            }
+                        }
+
+                        GuiActions::AnalyzeCached => match acm_exe_path {
                             Some(ref path) => {
-                                let start_frame: i64 = start_frame_input.value().parse().unwrap(); //TODO error handling
-                                analyze_autocutmarks(
+                                analyze_autocutmarks_cached(
                                     path,
                                     action_handler.get_current_media_path(),
-                                    start_frame,
+                                    action_handler.get_fps(),
+                                    tx_cutmarks_ready.clone(),
                                 );
                             }
 
                             None => {
                                 println!("Executable for AutoCutMarks was not set");
                             }
+                        },
+
+                        GuiActions::SetStartFrame => {
+                            let start_frame = action_handler.get_current_frame();
+                            dbg!("set start frame to {}", start_frame);
+                            let s = start_frame.to_string();
+                            start_frame_input.set_value(&s);
                         }
-                    }
 
-                    GuiActions::SetStartFrame => {
-                        let start_frame = action_handler.get_current_frame();
-                        let s = start_frame.to_string();
-                        start_frame_input.set_value(&s);
-                    }
+                        GuiActions::SetEndFrame => {
+                            let end_frame = action_handler.get_current_frame();
+                            let s = end_frame.to_string();
+                            end_frame_input.set_value(&s);
+                        }
 
-                    _ => {}
+                        _ => {}
+                    }
                 }
             }
         }
@@ -405,15 +469,70 @@ fn start_vlc(
     std::process::exit(0);
 }
 
-fn analyze_autocutmarks(acm_exe_path: &PathBuf, videofile: &PathBuf, start_frame: i64) {
-    let end_frame = start_frame + 200;
-    let status = std::process::Command::new("python3")
-        .arg(acm_exe_path)
-        .arg(format!("-s {}", start_frame))
-        .arg(format!("-e {}", end_frame))
-        .arg(videofile)
-        .arg("snaps.txt")
-        .status()
-        .unwrap();
-    assert!(status.success() == true); // TODO: error handling
+type Cutmarks = BTreeSet<i64>;
+
+fn analyze_autocutmarks(
+    acm_exe_path: &PathBuf,
+    videofile: &PathBuf,
+    start_frame: i64,
+    end_frame: i64,
+    fps: f32,
+    tx: Sender<Arc<Mutex<Box<Cutmarks>>>>,
+) {
+    let acm_exe_path = acm_exe_path.clone();
+    let videofile = videofile.clone();
+    std::thread::spawn(move || {
+        let status = std::process::Command::new("python3")
+            .arg(acm_exe_path)
+            .arg(format!("-s {}", start_frame))
+            .arg(format!("-e {}", end_frame))
+            .arg(videofile)
+            .arg("snaps.txt")
+            .status()
+            .unwrap();
+
+        if status.success() {
+            let cutmarks = read_cutmarks_file(fps);
+            tx.send(Arc::new(Mutex::new(cutmarks))).unwrap();
+        }
+    });
+}
+
+fn analyze_autocutmarks_cached(
+    acm_exe_path: &PathBuf,
+    videofile: &PathBuf,
+    fps: f32,
+    tx: Sender<Arc<Mutex<Box<Cutmarks>>>>,
+) {
+    let acm_exe_path = acm_exe_path.clone();
+    let videofile = videofile.clone();
+    std::thread::spawn(move || {
+        let status = std::process::Command::new("python3")
+            .arg(acm_exe_path)
+            .arg("--mode=use-cached")
+            .arg(videofile)
+            .arg("snaps.txt")
+            .status()
+            .unwrap();
+
+        if status.success() {
+            let cutmarks = read_cutmarks_file(fps);
+            tx.send(Arc::new(Mutex::new(cutmarks))).unwrap();
+        }
+    });
+}
+
+fn read_cutmarks_file(fps: f32) -> Box<Cutmarks> {
+    let cutmarks_file = File::open("snaps.txt").unwrap();
+    let lines = io::BufReader::new(cutmarks_file).lines();
+    let mut cutmarks = Box::new(Cutmarks::new());
+    for line in lines {
+        if let Ok(l) = line {
+            let cutmark: u64 = l.parse().unwrap();
+            let time = (cutmark as f32 / fps * 1000.0) as i64;
+            cutmarks.insert(time);
+        }
+    }
+
+    cutmarks
 }
