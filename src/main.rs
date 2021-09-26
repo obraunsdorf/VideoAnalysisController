@@ -180,11 +180,12 @@ enum GuiActions {
     SetStartFrame,
     SetEndFrame,
     KeyEvent(fltk::enums::Key),
+    SetMediaPosition(f64),
 }
 
 fn run_with_fltk() {
     let app = fltk::app::App::default().with_scheme(fltk::app::AppScheme::Gtk);
-    let mut win = fltk::window::Window::new(100, 100, 800, 600, "Media Player");
+    let mut win = fltk::window::Window::new(100, 100, 800, 800, "Media Player");
 
     // Create inner window to act as embedded media player
     let mut vlc_win = fltk::window::Window::new(10, 10, 780, 520, "");
@@ -196,19 +197,38 @@ fn run_with_fltk() {
 
     let (s, r) = fltk::app::channel::<GuiActions>();
 
-    let mut start_frame_input = fltk::input::IntInput::new(10, gui_elements_start_y, 100, 30, None);
+    let mut start_frame_input =
+        fltk::input::IntInput::new(10, gui_elements_start_y + 20, 100, 30, None);
     let mut start_frame_button =
-        fltk::button::Button::new(10, gui_elements_start_y + 30, 100, 30, "set start frame");
+        fltk::button::Button::new(10, gui_elements_start_y + 50, 100, 30, "set start frame");
     start_frame_button.emit(s, GuiActions::SetStartFrame);
 
-    let mut end_frame_input = fltk::input::IntInput::new(110, gui_elements_start_y, 100, 30, None);
+    let mut end_frame_input =
+        fltk::input::IntInput::new(110, gui_elements_start_y + 20, 100, 30, None);
     let mut end_frame_button =
-        fltk::button::Button::new(110, gui_elements_start_y + 30, 100, 30, "set end frame");
+        fltk::button::Button::new(110, gui_elements_start_y + 50, 100, 30, "set end frame");
     end_frame_button.emit(s, GuiActions::SetEndFrame);
+
+    let mut slider = fltk::valuator::HorNiceSlider::new(30, gui_elements_start_y, 750, 15, None);
+    let slider_sender = s.clone();
+    slider.handle(move |w, event| match event {
+        fltk::enums::Event::Drag => {
+            let pos = w.value();
+            slider_sender.send(GuiActions::SetMediaPosition(pos));
+            true
+        }
+
+        fltk::enums::Event::Released => {
+            w.clear_visible_focus();
+            true
+        }
+
+        _ => false,
+    });
 
     let mut button_acm_exe = fltk::button::Button::new(
         gui_elements_start_x + 300,
-        gui_elements_start_y,
+        gui_elements_start_y + 20,
         200,
         20,
         "Choose ACM Executable..",
@@ -217,8 +237,8 @@ fn run_with_fltk() {
 
     let mut button_analyze = fltk::button::Button::new(
         gui_elements_start_x + 300,
-        gui_elements_start_y + 20,
-        80,
+        gui_elements_start_y + 50,
+        200,
         20,
         "Analyze",
     );
@@ -226,8 +246,8 @@ fn run_with_fltk() {
 
     let mut button_analyze_cached = fltk::button::Button::new(
         gui_elements_start_x + 300,
-        gui_elements_start_y + 40,
-        80,
+        gui_elements_start_y + 90,
+        200,
         20,
         "Analyze cached",
     );
@@ -266,6 +286,7 @@ fn run_with_fltk() {
             start_frame_input,
             end_frame_input,
             key_event_receiver,
+            slider,
         )),
         Some(handle),
     );
@@ -278,6 +299,7 @@ fn start_vlc(
         fltk::input::IntInput,
         fltk::input::IntInput,
         fltk::app::Receiver<fltk::enums::Key>,
+        fltk::valuator::HorNiceSlider,
     )>,
     render_window: Option<WindowHandle>,
 ) {
@@ -374,11 +396,20 @@ fn start_vlc(
             ref mut start_frame_input,
             ref mut end_frame_input,
             key_event_receiver,
+            ref mut slider,
         )) = fltk_app
         {
+            if !slider.has_focus() {
+                slider.set_value(action_handler.get_media_relative_position() as f64);
+            }
+
             if event_happened {
                 if let Some(gui_action) = gui_actions_receiver.recv() {
                     match gui_action {
+                        GuiActions::SetMediaPosition(pos) => {
+                            action_handler.set_media_relative_position(pos as f32)
+                        }
+
                         GuiActions::KeyEvent(key) => {
                             if let Some(action) = action_from_pressed_key(key) {
                                 if let Err(e) = action_handler.handle(action) {

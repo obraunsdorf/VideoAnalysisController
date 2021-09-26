@@ -62,6 +62,14 @@ impl<'vlc> ActionHandler<'vlc> {
         self.cutmarks = Some(cutmarks.clone());
     }
 
+    pub(super) fn get_media_relative_position(&self) -> f32 {
+        self.mdp.get_position().unwrap()
+    }
+
+    pub(super) fn set_media_relative_position(&self, pos: f32) {
+        self.mdp.set_position(pos);
+    }
+
     pub(super) fn check_loop_end(&self) {
         if self.loop_end != -1 && self.mdp.get_time().unwrap() >= self.loop_end {
             self.mdp.set_time(self.loop_start);
