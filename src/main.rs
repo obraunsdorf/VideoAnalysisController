@@ -175,8 +175,8 @@ enum GuiActions {
     ChooseACMExe,
     Analyze,
     AnalyzeCached,
-    //CalibrateNear,
-    //CalibrateFar,
+    CalibrateNear,
+    CalibrateFar,
     SetStartFrame,
     SetEndFrame,
     KeyEvent(fltk::enums::Key),
@@ -185,7 +185,7 @@ enum GuiActions {
 
 fn run_with_fltk() {
     let app = fltk::app::App::default().with_scheme(fltk::app::AppScheme::Gtk);
-    let mut win = fltk::window::Window::new(100, 100, 800, 800, "Media Player");
+    let mut win = fltk::window::Window::new(100, 100, 800, 650, "Media Player");
 
     // Create inner window to act as embedded media player
     let mut vlc_win = fltk::window::Window::new(10, 10, 780, 520, "");
@@ -253,6 +253,20 @@ fn run_with_fltk() {
     );
     button_analyze_cached.emit(s, GuiActions::AnalyzeCached);
 
+    let mut calib_near_input =
+        fltk::input::IntInput::new(600, gui_elements_start_y + 20, 100, 30, None);
+    calib_near_input.set_value("900");
+    let mut calib_near_button =
+        fltk::button::Button::new(600, gui_elements_start_y + 50, 100, 30, "Calibrate Near");
+    calib_near_button.emit(s, GuiActions::CalibrateNear);
+
+    let mut calib_far_input =
+        fltk::input::IntInput::new(700, gui_elements_start_y + 20, 100, 30, None);
+    calib_far_input.set_value("500");
+    let mut calib_far_button =
+        fltk::button::Button::new(700, gui_elements_start_y + 50, 100, 30, "Calibrate Far");
+    calib_far_button.emit(s, GuiActions::CalibrateFar);
+
     win.make_resizable(true);
     //win.fullscreen(true);
     win.end();
@@ -285,6 +299,8 @@ fn run_with_fltk() {
             r,
             start_frame_input,
             end_frame_input,
+            calib_near_input,
+            calib_far_input,
             key_event_receiver,
             slider,
         )),
@@ -296,6 +312,8 @@ fn start_vlc(
     mut fltk_app: Option<(
         fltk::app::App,
         fltk::app::Receiver<GuiActions>,
+        fltk::input::IntInput,
+        fltk::input::IntInput,
         fltk::input::IntInput,
         fltk::input::IntInput,
         fltk::app::Receiver<fltk::enums::Key>,
@@ -395,6 +413,8 @@ fn start_vlc(
             gui_actions_receiver,
             ref mut start_frame_input,
             ref mut end_frame_input,
+            ref mut calib_near_input,
+            ref mut calib_far_input,
             key_event_receiver,
             ref mut slider,
         )) = fltk_app
@@ -426,12 +446,55 @@ fn start_vlc(
                             acm_exe_path = Some(acm_exe_chooser.filename());
                         }
 
+                        GuiActions::CalibrateNear => match acm_exe_path {
+                            Some(ref path) => {
+                                let threshold_near: u64 = calib_near_input.value().parse().unwrap();
+                                autocutmarks_calibrate_near(
+                                    path,
+                                    action_handler.get_current_media_path(),
+                                    action_handler.get_current_frame(),
+                                    threshold_near,
+                                );
+                            }
+
+                            None => {
+                                println!("Executable for AutoCutMarks was not set");
+                            }
+                        },
+
+                        GuiActions::CalibrateFar => match acm_exe_path {
+                            Some(ref path) => {
+                                let threshold_far: u64 = calib_far_input.value().parse().unwrap();
+                                autocutmarks_calibrate_far(
+                                    path,
+                                    action_handler.get_current_media_path(),
+                                    action_handler.get_current_frame(),
+                                    threshold_far,
+                                );
+                            }
+
+                            None => {
+                                println!("Executable for AutoCutMarks was not set");
+                            }
+                        },
+
                         GuiActions::Analyze => {
                             match acm_exe_path {
                                 Some(ref path) => {
-                                    let start_frame: i64 =
-                                        start_frame_input.value().parse().unwrap(); //TODO error handling
-                                    let end_frame: i64 = end_frame_input.value().parse().unwrap(); //TODO error handling
+                                    let start_frame_value = start_frame_input.value();
+                                    let start_frame: Option<i64> = if start_frame_value.is_empty() {
+                                        None
+                                    } else {
+                                        Some(start_frame_value.parse().unwrap())
+                                        //TODO error handling
+                                    };
+
+                                    let end_frame_value = end_frame_input.value();
+                                    let end_frame: Option<i64> = if end_frame_value.is_empty() {
+                                        None
+                                    } else {
+                                        Some(end_frame_value.parse().unwrap()) //TODO error handling
+                                    };
                                     analyze_autocutmarks(
                                         path,
                                         action_handler.get_current_media_path(),
@@ -505,22 +568,25 @@ type Cutmarks = BTreeSet<i64>;
 fn analyze_autocutmarks(
     acm_exe_path: &PathBuf,
     videofile: &PathBuf,
-    start_frame: i64,
-    end_frame: i64,
+    start_frame: Option<i64>,
+    end_frame: Option<i64>,
     fps: f32,
     tx: Sender<Arc<Mutex<Box<Cutmarks>>>>,
 ) {
     let acm_exe_path = acm_exe_path.clone();
     let videofile = videofile.clone();
     std::thread::spawn(move || {
-        let status = std::process::Command::new("python3")
-            .arg(acm_exe_path)
-            .arg(format!("-s {}", start_frame))
-            .arg(format!("-e {}", end_frame))
-            .arg(videofile)
-            .arg("snaps.txt")
-            .status()
-            .unwrap();
+        let mut cmd = std::process::Command::new("python3");
+        cmd.arg(acm_exe_path);
+
+        if let Some(start) = start_frame {
+            cmd.arg(format!("-s {}", start));
+        }
+
+        if let Some(end) = end_frame {
+            cmd.arg(format!("-e {}", end));
+        }
+        let status = cmd.arg(videofile).arg("snaps.txt").status().unwrap();
 
         if status.success() {
             let cutmarks = read_cutmarks_file(fps);
@@ -551,6 +617,42 @@ fn analyze_autocutmarks_cached(
             tx.send(Arc::new(Mutex::new(cutmarks))).unwrap();
         }
     });
+}
+
+fn autocutmarks_calibrate_near(
+    acm_exe_path: &PathBuf,
+    videofile: &PathBuf,
+    start_frame: i64,
+    threshold: u64,
+) {
+    let status = std::process::Command::new("python3")
+        .arg(acm_exe_path)
+        .arg("--mode=calibrate-near")
+        .arg(format!("--thresholdNear={}", threshold))
+        .arg(format!("-s {}", start_frame))
+        .arg(videofile)
+        .arg("snaps.txt")
+        .status()
+        .unwrap();
+
+    assert!(status.success());
+}
+
+fn autocutmarks_calibrate_far(
+    acm_exe_path: &PathBuf,
+    videofile: &PathBuf,
+    start_frame: i64,
+    threshold: u64,
+) {
+    let status = std::process::Command::new("python3")
+        .arg(acm_exe_path)
+        .arg("--mode=calibrate-far")
+        .arg(format!("--thresholdFar={}", threshold))
+        .arg(format!("-s {}", start_frame))
+        .arg(videofile)
+        .arg("snaps.txt")
+        .status()
+        .unwrap();
 }
 
 fn read_cutmarks_file(fps: f32) -> Box<Cutmarks> {
