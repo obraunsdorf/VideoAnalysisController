@@ -576,8 +576,7 @@ fn analyze_autocutmarks(
     let acm_exe_path = acm_exe_path.clone();
     let videofile = videofile.clone();
     std::thread::spawn(move || {
-        let mut cmd = std::process::Command::new("python3");
-        cmd.arg(acm_exe_path);
+        let mut cmd = std::process::Command::new(acm_exe_path);
 
         if let Some(start) = start_frame {
             cmd.arg(format!("-s {}", start));
@@ -604,8 +603,7 @@ fn analyze_autocutmarks_cached(
     let acm_exe_path = acm_exe_path.clone();
     let videofile = videofile.clone();
     std::thread::spawn(move || {
-        let status = std::process::Command::new("python3")
-            .arg(acm_exe_path)
+        let status = std::process::Command::new(acm_exe_path)
             .arg("--mode=use-cached")
             .arg(videofile)
             .arg("snaps.txt")
@@ -625,8 +623,7 @@ fn autocutmarks_calibrate_near(
     start_frame: i64,
     threshold: u64,
 ) {
-    let status = std::process::Command::new("python3")
-        .arg(acm_exe_path)
+    let status = std::process::Command::new(acm_exe_path)
         .arg("--mode=calibrate-near")
         .arg(format!("--thresholdNear={}", threshold))
         .arg(format!("-s {}", start_frame))
@@ -644,8 +641,7 @@ fn autocutmarks_calibrate_far(
     start_frame: i64,
     threshold: u64,
 ) {
-    let status = std::process::Command::new("python3")
-        .arg(acm_exe_path)
+    let status = std::process::Command::new(acm_exe_path)
         .arg("--mode=calibrate-far")
         .arg(format!("--thresholdFar={}", threshold))
         .arg(format!("-s {}", start_frame))
