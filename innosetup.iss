@@ -35,7 +35,7 @@ Name: "german"; MessagesFile: "compiler:Languages\German.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "target\debug\VideoAnalysisController.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "target\release\VideoAnalysisController.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "keymap.toml"; DestDir: "{app}"; Flags: ignoreversion
 Source: "ffmpeg.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files

@@ -46,7 +46,7 @@ jobs:
             artifact_path: Output/VACsetup.exe
           - os: ubuntu-latest
             artifact_name: VideoAnalysisController
-            artifact_path: target/debug/VideoAnalysisController
+            artifact_path: target/release/VideoAnalysisController
             
     steps:
       - uses: actions/checkout@v2
@@ -73,17 +73,19 @@ jobs:
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           set VLC_LIB_DIR=%GITHUB_WORKSPACE%\blubVLCbla\VideoLAN.LibVLC.Windows.3.0.16\build\x64\
-          cargo build
+          cargo build --release
           
       
       - uses: actions-rs/cargo@v1
         if: matrix.os != 'windows-latest'
         with:
           command: build
+          args: --release
 
       - uses: actions-rs/cargo@v1
         with:
           command: test
+          args: --release
 
   #    - uses: actions-rs/cargo@v1
   #      with:
@@ -93,6 +95,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
+          args: --release
           
       - name: Innosetup
         if: matrix.os == 'windows-latest'
