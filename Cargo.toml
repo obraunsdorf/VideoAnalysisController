@@ -6,7 +6,7 @@ edition = "2018"
 build = "build.rs"
 
 [dependencies]
-vlc-rs = { git  = "https://code.videolan.org/mfkl/vlc-rs.git" }
+vlc-rs = { git  = "https://github.com/obraunsdorf/mfkl-vlc-rs.git" }
 gilrs = "0.7.1"
 configuration = "0.7.2"
 #clap = "2.33.3"

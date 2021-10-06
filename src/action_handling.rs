@@ -5,7 +5,7 @@ use std::{
     process::Command,
 };
 
-use vlc::MediaPlayer;
+use vlc::{MarqueeOption, MediaPlayer};
 
 use crate::{ffmpeg, ClipType, Cutmarks, CLIP_SUFFIX_DEFENSE, CLIP_SUFFIX_OFFENSE};
 
@@ -14,6 +14,7 @@ use super::Action;
 pub(super) struct ActionHandler<'vlc> {
     vlc_instance: &'vlc vlc::Instance,
     mdp: MediaPlayer,
+    marquee_option: MarqueeOption,
     media_iter: Cycle<std::slice::Iter<'vlc, PathBuf>>,
     current_media_path: &'vlc PathBuf,
     clips: BTreeSet<i64>,
@@ -39,16 +40,16 @@ impl<'vlc> ActionHandler<'vlc> {
         let md = vlc::Media::new_path(&vlc_instance, current_media_path).unwrap();
         mdp.set_media(&md);
 
-        /*  // Initialize VLC Marquee -- maybe we don't need this anymore with FLTK
-            let mut marquee_option: MarqueeOption = Default::default();
-            marquee_option.position = Some(0);
-            marquee_option.opacity = Some(70);
-            marquee_option.timeout = Some(1000);
-        */
+        // Initialize VLC Marquee -- maybe we don't need this anymore with FLTK
+        let mut marquee_option: MarqueeOption = Default::default();
+        marquee_option.position = Some(0);
+        marquee_option.opacity = Some(70);
+        marquee_option.timeout = Some(1000);
 
         ActionHandler {
             vlc_instance,
             mdp,
+            marquee_option,
             media_iter,
             current_media_path,
             clips,
@@ -161,14 +162,16 @@ impl<'vlc> ActionHandler<'vlc> {
                 let condensed_dir_path = Path::new(s2.as_str());
                 std::fs::create_dir(&condensed_dir_path).unwrap();
                 let result = ffmpeg::concat(clips_dir_path, condensed_dir_path);
-                let _msg = if let Err(e) = result {
+                let msg = if let Err(e) = result {
                     println!("{}", e);
                     "error concatenating"
                 } else {
                     "concatenating clips"
                 };
 
-                //self.mdp.show_marqee_text(&msg, &marquee_option);
+                self.mdp
+                    .show_marqee_text(&msg, &self.marquee_option)
+                    .unwrap();
             }
 
             Action::CutCurrentLoop(o_d_option) => {
@@ -225,11 +228,15 @@ impl<'vlc> ActionHandler<'vlc> {
                     .arg(out_file_path)
                     .spawn()
                 {
-                    let _msg = "cut clip".to_owned() + user_hint;
-                    //self.mdp.show_marqee_text(&msg, &marquee_option);
+                    let msg = "cut clip".to_owned() + user_hint;
+                    self.mdp
+                        .show_marqee_text(&msg, &self.marquee_option)
+                        .unwrap();
                     println!("command executed: {:?}", child_proc);
                 } else {
-                    //self.mdp.show_marqee_text("error on creating clip", &marquee_option);
+                    self.mdp
+                        .show_marqee_text("error on creating clip", &self.marquee_option)
+                        .unwrap();
                 }
 
                 self.loop_start = -1;
@@ -245,7 +252,9 @@ impl<'vlc> ActionHandler<'vlc> {
                     }
                     None => println!("error getting time"),
                 }
-                //self.mdp.show_marqee_text("start loop", &marquee_option);
+                self.mdp
+                    .show_marqee_text("start loop", &self.marquee_option)
+                    .unwrap();
                 println!("set loop start at {:?}", self.loop_start)
             }
 
@@ -350,7 +359,9 @@ impl<'vlc> ActionHandler<'vlc> {
                     None => println!("error getting time"),
                 }
                 println!("set loop end at {:?}", self.loop_end);
-                //self.mdp.show_marqee_text("end loop", &marquee_option);
+                self.mdp
+                    .show_marqee_text("end loop", &self.marquee_option)
+                    .unwrap();
                 self.mdp.set_time(self.loop_start);
                 //check_self.loop_end(&tx, self.mdp, self.loop_start, self.loop_end);
             }
@@ -367,7 +378,9 @@ impl<'vlc> ActionHandler<'vlc> {
                 }
             }*/
             Action::BreakLoop => {
-                //self.mdp.show_marqee_text("break loop", &marquee_option);
+                self.mdp
+                    .show_marqee_text("break loop", &self.marquee_option)
+                    .unwrap();
                 self.loop_end = -1;
             }
 

@@ -585,7 +585,7 @@ checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
 [[package]]
 name = "vlc-rs"
 version = "0.3.0"
-source = "git+https://code.videolan.org/mfkl/vlc-rs.git#21c4cb25f52b30fec2e66bc4028d4f45adcb22f6"
+source = "git+https://github.com/obraunsdorf/mfkl-vlc-rs.git#7a34009ee3d2168df7e22e5cd5c8d3a798fb78cf"
 dependencies = [
  "libc",
  "vswhom",
