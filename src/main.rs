@@ -2,13 +2,10 @@ use std::{
     collections::btree_set::BTreeSet,
     fs::File,
     io::{self, BufRead},
-    sync::{
-        mpsc::{Receiver, Sender},
-        Arc, Mutex,
-    },
+    sync::{mpsc::Sender, Arc, Mutex},
 };
 
-use fltk::{dialog::FileDialogType, frame, prelude::*};
+use fltk::{dialog::FileDialogType, prelude::*};
 use std::string::String;
 use std::sync::mpsc::channel;
 
@@ -26,7 +23,7 @@ use action_handling::ActionHandler;
 #[cfg(target_os = "windows")]
 use libc::c_void;
 
-use crate::input::keyboard_fltk::action_from_pressed_key;
+use crate::input::{controller::Controller, keyboard_fltk::action_from_pressed_key};
 
 const CLIP_SUFFIX_OFFENSE: &str = "Off";
 const CLIP_SUFFIX_DEFENSE: &str = "Def";
@@ -351,8 +348,7 @@ fn start_vlc(
         media_paths.push(p);
     }
 
-    let (tx, rx) = channel::<Action>();
-    input::spawn_input_threads_with_sender(&tx);
+    let mut controller = Controller::new();
 
     let instance = Instance::new().unwrap();
     /*let vlc_args: Vec<String> = vec![
@@ -538,24 +534,16 @@ fn start_vlc(
                             let s = end_frame.to_string();
                             end_frame_input.set_value(&s);
                         }
-
-                        _ => {}
                     }
                 }
             }
         }
 
-        let result = rx.try_recv();
-        if result.is_err() {
-            continue;
-            //println!("VAC Error: connection to controller or keyboard has been lost.");
-            //break;
-        }
-        let action = result.unwrap();
-
-        if let Err(e) = action_handler.handle(action) {
-            println!("exiting because of: {}", e);
-            break;
+        if let Some(action) = controller.next_action() {
+            if let Err(e) = action_handler.handle(action) {
+                println!("exiting because of: {}", e);
+                break;
+            }
         }
     }
 
@@ -649,6 +637,8 @@ fn autocutmarks_calibrate_far(
         .arg("snaps.txt")
         .status()
         .unwrap();
+
+    assert!(status.success());
 }
 
 fn read_cutmarks_file(fps: f32) -> Box<Cutmarks> {
