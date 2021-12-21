@@ -1,3 +1,7 @@
+motionGraph.json
+snaps.txt
+libvlc.log
+.vscode
 /.idea
 /target
 **/*.rs.bk
