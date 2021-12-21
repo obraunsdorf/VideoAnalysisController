@@ -324,6 +324,9 @@ impl<'vlc> ActionHandler<'vlc> {
                                 self.mdp.set_time(*cutmark);
                                 println!("previous cutmark from {}", *cutmark);
                             }
+                            self.mdp
+                                .show_marqee_text("Previous Cutmark", &self.marquee_option)
+                                .unwrap();
                             //self.mdp.play();
                             //tx.send(Action::TogglePlayPause).unwrap();
                             break;
@@ -341,6 +344,9 @@ impl<'vlc> ActionHandler<'vlc> {
                             self.mdp.play().unwrap();
                             //tx.send(Action::TogglePlayPause).unwrap();
                             println!("jumping to cutmark {}", *cutmark);
+                            self.mdp
+                                .show_marqee_text("Next Cutmark", &self.marquee_option)
+                                .unwrap();
                             break;
                         }
                     }
