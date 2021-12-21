@@ -5,12 +5,16 @@ use std::{
     sync::{mpsc::Sender, Arc, Mutex},
 };
 
-use fltk::{dialog::FileDialogType, prelude::*};
 use std::string::String;
 use std::sync::mpsc::channel;
 
 use std::convert::TryInto;
 
+use fltk::{
+    dialog::FileDialogType,
+    prelude::{InputExt, ValuatorExt, WidgetExt, WindowExt},
+};
+use fltk_gui::{FltkGui, GuiActions};
 use vlc::{Instance, MediaPlayer, MediaPlayerVideoEx};
 
 pub mod ffmpeg;
@@ -20,6 +24,7 @@ use std::path::PathBuf;
 mod action_handling;
 use action_handling::ActionHandler;
 
+mod fltk_gui;
 #[cfg(target_os = "windows")]
 use libc::c_void;
 
@@ -167,157 +172,12 @@ type WindowHandle = *mut c_void;
 #[cfg(target_os = "linux")]
 type WindowHandle = u64;
 
-#[derive(Copy, Clone)]
-enum GuiActions {
-    ChooseACMExe,
-    Analyze,
-    AnalyzeCached,
-    CalibrateNear,
-    CalibrateFar,
-    SetStartFrame,
-    SetEndFrame,
-    KeyEvent(fltk::enums::Key),
-    SetMediaPosition(f64),
-}
-
 fn run_with_fltk() {
-    let app = fltk::app::App::default().with_scheme(fltk::app::AppScheme::Gtk);
-    let mut win = fltk::window::Window::new(100, 100, 800, 650, "Media Player");
-
-    // Create inner window to act as embedded media player
-    let mut vlc_win = fltk::window::Window::new(10, 10, 780, 520, "");
-    vlc_win.end();
-    vlc_win.set_color(fltk::enums::Color::Black);
-
-    let gui_elements_start_x = 10;
-    let gui_elements_start_y = vlc_win.y() + vlc_win.height() + 10;
-
-    let (s, r) = fltk::app::channel::<GuiActions>();
-
-    let mut start_frame_input =
-        fltk::input::IntInput::new(10, gui_elements_start_y + 20, 100, 30, None);
-    let mut start_frame_button =
-        fltk::button::Button::new(10, gui_elements_start_y + 50, 100, 30, "set start frame");
-    start_frame_button.emit(s, GuiActions::SetStartFrame);
-
-    let mut end_frame_input =
-        fltk::input::IntInput::new(110, gui_elements_start_y + 20, 100, 30, None);
-    let mut end_frame_button =
-        fltk::button::Button::new(110, gui_elements_start_y + 50, 100, 30, "set end frame");
-    end_frame_button.emit(s, GuiActions::SetEndFrame);
-
-    let mut slider = fltk::valuator::HorNiceSlider::new(30, gui_elements_start_y, 750, 15, None);
-    let slider_sender = s.clone();
-    slider.handle(move |w, event| match event {
-        fltk::enums::Event::Drag => {
-            let pos = w.value();
-            slider_sender.send(GuiActions::SetMediaPosition(pos));
-            true
-        }
-
-        fltk::enums::Event::Released => {
-            w.clear_visible_focus();
-            true
-        }
-
-        _ => false,
-    });
-
-    let mut button_acm_exe = fltk::button::Button::new(
-        gui_elements_start_x + 300,
-        gui_elements_start_y + 20,
-        200,
-        20,
-        "Choose ACM Executable..",
-    );
-    button_acm_exe.emit(s, GuiActions::ChooseACMExe);
-
-    let mut button_analyze = fltk::button::Button::new(
-        gui_elements_start_x + 300,
-        gui_elements_start_y + 50,
-        200,
-        20,
-        "Analyze",
-    );
-    button_analyze.emit(s, GuiActions::Analyze);
-
-    let mut button_analyze_cached = fltk::button::Button::new(
-        gui_elements_start_x + 300,
-        gui_elements_start_y + 90,
-        200,
-        20,
-        "Analyze cached",
-    );
-    button_analyze_cached.emit(s, GuiActions::AnalyzeCached);
-
-    let mut calib_near_input =
-        fltk::input::IntInput::new(600, gui_elements_start_y + 20, 100, 30, None);
-    calib_near_input.set_value("900");
-    let mut calib_near_button =
-        fltk::button::Button::new(600, gui_elements_start_y + 50, 100, 30, "Calibrate Near");
-    calib_near_button.emit(s, GuiActions::CalibrateNear);
-
-    let mut calib_far_input =
-        fltk::input::IntInput::new(700, gui_elements_start_y + 20, 100, 30, None);
-    calib_far_input.set_value("500");
-    let mut calib_far_button =
-        fltk::button::Button::new(700, gui_elements_start_y + 50, 100, 30, "Calibrate Far");
-    calib_far_button.emit(s, GuiActions::CalibrateFar);
-
-    win.make_resizable(true);
-    //win.fullscreen(true);
-    win.end();
-    win.show();
-
-    let (key_event_sender, key_event_receiver) = fltk::app::channel::<fltk::enums::Key>();
-    win.handle(move |_w, ev| match ev {
-        fltk::enums::Event::NoEvent => false, // happens on windows according to: https://docs.rs/fltk/1.2.3/fltk/app/fn.wait_for.html
-
-        fltk::enums::Event::Close => {
-            println!("FLTK main window closed, exiting");
-            //TODO(obr): exit the application
-            false
-        }
-
-        fltk::enums::Event::KeyUp => {
-            let key = fltk::app::event_key();
-            s.send(GuiActions::KeyEvent(key));
-            true
-        }
-
-        _ => false,
-    });
-
-    let handle = vlc_win.raw_handle();
-
-    start_vlc(
-        Some((
-            app,
-            r,
-            start_frame_input,
-            end_frame_input,
-            calib_near_input,
-            calib_far_input,
-            key_event_receiver,
-            slider,
-        )),
-        Some(handle),
-    );
+    let fltk_gui = FltkGui::new();
+    start_vlc(Some(fltk_gui))
 }
 
-fn start_vlc(
-    mut fltk_app: Option<(
-        fltk::app::App,
-        fltk::app::Receiver<GuiActions>,
-        fltk::input::IntInput,
-        fltk::input::IntInput,
-        fltk::input::IntInput,
-        fltk::input::IntInput,
-        fltk::app::Receiver<fltk::enums::Key>,
-        fltk::valuator::HorNiceSlider,
-    )>,
-    render_window: Option<WindowHandle>,
-) {
+fn start_vlc(mut fltk_gui: Option<FltkGui>) {
     let args: Vec<String> = std::env::args().collect();
 
     println!("args: {:?}", args);
@@ -367,7 +227,9 @@ fn start_vlc(
 
     let mdp = MediaPlayer::new(&instance).unwrap();
 
-    if let Some(handle) = render_window {
+    if let Some(gui) = &fltk_gui {
+        let handle: WindowHandle = gui.vlc_win.raw_handle();
+
         #[cfg(target_os = "windows")]
         mdp.set_hwnd(handle);
 
@@ -404,23 +266,14 @@ fn start_vlc(
             action_handler.set_cutmarks(cutmarks)
         }
 
-        if let Some((
-            _app,
-            gui_actions_receiver,
-            ref mut start_frame_input,
-            ref mut end_frame_input,
-            ref mut calib_near_input,
-            ref mut calib_far_input,
-            key_event_receiver,
-            ref mut slider,
-        )) = fltk_app
-        {
-            if !slider.has_focus() {
-                slider.set_value(action_handler.get_media_relative_position() as f64);
+        if let Some(gui) = &mut fltk_gui {
+            if !gui.slider.has_focus() {
+                gui.slider
+                    .set_value(action_handler.get_media_relative_position() as f64);
             }
 
             if event_happened {
-                if let Some(gui_action) = gui_actions_receiver.recv() {
+                if let Some(gui_action) = gui.gui_actions_receiver.recv() {
                     match gui_action {
                         GuiActions::SetMediaPosition(pos) => {
                             action_handler.set_media_relative_position(pos as f32)
@@ -444,7 +297,8 @@ fn start_vlc(
 
                         GuiActions::CalibrateNear => match acm_exe_path {
                             Some(ref path) => {
-                                let threshold_near: u64 = calib_near_input.value().parse().unwrap();
+                                let threshold_near: u64 =
+                                    gui.calib_near_input.value().parse().unwrap();
                                 autocutmarks_calibrate_near(
                                     path,
                                     action_handler.get_current_media_path(),
@@ -460,7 +314,8 @@ fn start_vlc(
 
                         GuiActions::CalibrateFar => match acm_exe_path {
                             Some(ref path) => {
-                                let threshold_far: u64 = calib_far_input.value().parse().unwrap();
+                                let threshold_far: u64 =
+                                    gui.calib_far_input.value().parse().unwrap();
                                 autocutmarks_calibrate_far(
                                     path,
                                     action_handler.get_current_media_path(),
@@ -477,7 +332,7 @@ fn start_vlc(
                         GuiActions::Analyze => {
                             match acm_exe_path {
                                 Some(ref path) => {
-                                    let start_frame_value = start_frame_input.value();
+                                    let start_frame_value = gui.start_frame_input.value();
                                     let start_frame: Option<i64> = if start_frame_value.is_empty() {
                                         None
                                     } else {
@@ -485,7 +340,7 @@ fn start_vlc(
                                         //TODO error handling
                                     };
 
-                                    let end_frame_value = end_frame_input.value();
+                                    let end_frame_value = gui.end_frame_input.value();
                                     let end_frame: Option<i64> = if end_frame_value.is_empty() {
                                         None
                                     } else {
@@ -509,10 +364,18 @@ fn start_vlc(
 
                         GuiActions::AnalyzeCached => match acm_exe_path {
                             Some(ref path) => {
+                                let sensitivity_value = gui.sensitivity_input.value();
+                                let sensitivity: Option<f32> = if sensitivity_value.is_empty() {
+                                    None
+                                } else {
+                                    Some(sensitivity_value.parse().unwrap())
+                                    //TODO error handling
+                                };
                                 analyze_autocutmarks_cached(
                                     path,
                                     action_handler.get_current_media_path(),
                                     action_handler.get_fps(),
+                                    sensitivity,
                                     tx_cutmarks_ready.clone(),
                                 );
                             }
@@ -526,13 +389,13 @@ fn start_vlc(
                             let start_frame = action_handler.get_current_frame();
                             dbg!("set start frame to {}", start_frame);
                             let s = start_frame.to_string();
-                            start_frame_input.set_value(&s);
+                            gui.start_frame_input.set_value(&s);
                         }
 
                         GuiActions::SetEndFrame => {
                             let end_frame = action_handler.get_current_frame();
                             let s = end_frame.to_string();
-                            end_frame_input.set_value(&s);
+                            gui.end_frame_input.set_value(&s);
                         }
                     }
                 }
@@ -586,17 +449,20 @@ fn analyze_autocutmarks_cached(
     acm_exe_path: &PathBuf,
     videofile: &PathBuf,
     fps: f32,
+    sensitivity: Option<f32>,
     tx: Sender<Arc<Mutex<Box<Cutmarks>>>>,
 ) {
     let acm_exe_path = acm_exe_path.clone();
     let videofile = videofile.clone();
     std::thread::spawn(move || {
-        let status = std::process::Command::new(acm_exe_path)
-            .arg("--mode=use-cached")
-            .arg(videofile)
-            .arg("snaps.txt")
-            .status()
-            .unwrap();
+        let mut cmd = std::process::Command::new(acm_exe_path);
+        cmd.arg("--mode=use-cached");
+
+        if let Some(sensitivity) = sensitivity {
+            cmd.arg(format!("--sensitivity={}", sensitivity));
+        };
+
+        let status = cmd.arg(videofile).arg("snaps.txt").status().unwrap();
 
         if status.success() {
             let cutmarks = read_cutmarks_file(fps);
