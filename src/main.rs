@@ -24,6 +24,8 @@ use std::path::PathBuf;
 mod action_handling;
 use action_handling::ActionHandler;
 
+mod zooming;
+
 mod fltk_gui;
 #[cfg(target_os = "windows")]
 use libc::c_void;
@@ -37,6 +39,12 @@ const CLIP_SUFFIX_DEFENSE: &str = "Def";
 pub enum ClipType {
     Offense,
     Defense,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+pub enum MoveZoomAxis {
+    Horizontal,
+    Vertical,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
@@ -61,6 +69,8 @@ pub enum Action {
     PreviousCutmark,
     NextCutmark,
     Stop,
+    Zoom(f32),
+    MoveZoom(MoveZoomAxis, f32),
     Exit,
 }
 impl Into<&str> for Action {

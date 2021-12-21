@@ -1,5 +1,7 @@
 use gilrs::{Button, Event, EventType, Gilrs};
 
+use crate::MoveZoomAxis;
+
 use super::super::Action;
 use super::super::ClipType;
 use std::time::Duration;
@@ -90,6 +92,15 @@ impl Controller {
                     Button::RightTrigger2 => Some(Action::Forward(pos)),
                     _ => None,
                 },
+
+                EventType::AxisChanged(axis, pos, _code) => {
+                    match axis {
+                        gilrs::Axis::RightStickX =>  Some(Action::Zoom(pos)),
+                        gilrs::Axis::LeftStickX =>  Some(Action::MoveZoom(MoveZoomAxis::Horizontal, pos)),
+                        gilrs::Axis::LeftStickY => Some(Action::MoveZoom(MoveZoomAxis::Vertical, pos)),
+                        _ => None
+                    }
+                }
 
                 _ => None,
             }

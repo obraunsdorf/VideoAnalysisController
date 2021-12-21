@@ -11,6 +11,8 @@ use crate::{ffmpeg, ClipType, Cutmarks, CLIP_SUFFIX_DEFENSE, CLIP_SUFFIX_OFFENSE
 
 use super::Action;
 
+use crate::zooming::Zoom;
+
 pub(super) struct ActionHandler<'vlc> {
     vlc_instance: &'vlc vlc::Instance,
     mdp: MediaPlayer,
@@ -21,6 +23,7 @@ pub(super) struct ActionHandler<'vlc> {
     cutmarks: Option<Box<Cutmarks>>,
     loop_start: i64,
     loop_end: i64,
+    zoom: Zoom<'vlc>,
 }
 
 impl<'vlc> ActionHandler<'vlc> {
@@ -46,6 +49,9 @@ impl<'vlc> ActionHandler<'vlc> {
         marquee_option.opacity = Some(70);
         marquee_option.timeout = Some(1000);
 
+        let mut zoom = Zoom::new(&mdp, (1920, 1080));
+
+
         ActionHandler {
             vlc_instance,
             mdp,
@@ -56,6 +62,7 @@ impl<'vlc> ActionHandler<'vlc> {
             cutmarks: None,
             loop_start: -1,
             loop_end: -1,
+            zoom,
         }
     }
 
