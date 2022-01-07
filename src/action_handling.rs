@@ -1,9 +1,4 @@
-use std::{
-    collections::BTreeSet,
-    iter::Cycle,
-    path::{Path, PathBuf},
-    process::Command,
-};
+use std::{collections::BTreeSet, iter::Cycle, path::PathBuf, process::Command};
 
 use vlc::{MarqueeOption, MediaPlayer};
 
@@ -15,8 +10,9 @@ pub(super) struct ActionHandler<'vlc> {
     vlc_instance: &'vlc vlc::Instance,
     mdp: MediaPlayer,
     marquee_option: MarqueeOption,
-    media_iter: Cycle<std::slice::Iter<'vlc, PathBuf>>,
-    current_media_path: &'vlc PathBuf,
+    project_dir: PathBuf,
+    media_iter: Cycle<std::vec::IntoIter<PathBuf>>,
+    current_media_path: Option<PathBuf>,
     clips: BTreeSet<i64>,
     cutmarks: Option<Box<Cutmarks>>,
     loop_start: i64,
@@ -27,18 +23,9 @@ impl<'vlc> ActionHandler<'vlc> {
     pub(super) fn new(
         vlc_instance: &'vlc vlc::Instance,
         mdp: MediaPlayer,
-        media_paths: &'vlc Vec<PathBuf>,
-    ) -> ActionHandler<'vlc> {
-        let mut media_iter = media_paths.iter().cycle();
-        let current_media_path = media_iter.next().unwrap();
-
+        project_dir: PathBuf,
+    ) -> Result<ActionHandler<'vlc>, std::io::Error> {
         let clips: BTreeSet<i64> = BTreeSet::new();
-        /*
-            maybe use "load_media" method for attaching to event manager?
-            let mut md = load_media(&vlc_instance, current_media_path, &tx);
-        */
-        let md = vlc::Media::new_path(&vlc_instance, current_media_path).unwrap();
-        mdp.set_media(&md);
 
         // Initialize VLC Marquee -- maybe we don't need this anymore with FLTK
         let mut marquee_option: MarqueeOption = Default::default();
@@ -46,17 +33,77 @@ impl<'vlc> ActionHandler<'vlc> {
         marquee_option.opacity = Some(70);
         marquee_option.timeout = Some(1000);
 
-        ActionHandler {
-            vlc_instance,
-            mdp,
+        let mut media_paths: Vec<PathBuf> = project_dir
+            .read_dir()?
+            .flat_map(|x| x)
+            .filter(|entry| {
+                if let Some(s) = entry.path().extension() {
+                    if let Some(extension) = s.to_str() {
+                        if super::VIDEO_EXTENSIONS.contains(&extension.to_uppercase().as_str()) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            })
+            .map(|entry| entry.path())
+            .collect();
+
+        media_paths.sort();
+        let media_iter = media_paths.into_iter().cycle();
+        let mut ah = ActionHandler {
+            vlc_instance: vlc_instance,
+            mdp: mdp,
             marquee_option,
+            project_dir,
             media_iter,
-            current_media_path,
+            current_media_path: None,
             clips,
             cutmarks: None,
             loop_start: -1,
             loop_end: -1,
-        }
+        };
+        let next_media = ah.media_iter.next().unwrap();
+        ah.play_media(&next_media);
+
+        Ok(ah)
+    }
+
+    pub(super) fn set_project_directory(
+        &mut self,
+        dir_path: PathBuf,
+    ) -> Result<(), std::io::Error> {
+        let mut media_paths: Vec<PathBuf> = dir_path
+            .read_dir()?
+            .flat_map(|x| x)
+            .filter(|entry| {
+                if let Some(s) = entry.path().extension() {
+                    if let Some(extension) = s.to_str() {
+                        if super::VIDEO_EXTENSIONS.contains(&extension.to_uppercase().as_str()) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            })
+            .map(|entry| entry.path())
+            .collect();
+
+        media_paths.sort();
+        let media_iter = media_paths.into_iter().cycle();
+        self.project_dir = dir_path;
+        self.media_iter = media_iter;
+        let next_media = self.media_iter.next().unwrap();
+        self.play_media(&next_media);
+
+        Ok(())
+    }
+
+    fn play_media(&mut self, current_media_path: &PathBuf) {
+        let md = vlc::Media::new_path(&self.vlc_instance, &current_media_path).unwrap();
+        self.current_media_path = Some(current_media_path.clone());
+        self.mdp.set_media(&md);
+        self.mdp.play().unwrap();
     }
 
     pub(super) fn set_cutmarks(&mut self, cutmarks: &Box<Cutmarks>) {
@@ -77,8 +124,8 @@ impl<'vlc> ActionHandler<'vlc> {
         }
     }
 
-    pub(super) fn get_current_media_path(&self) -> &'vlc PathBuf {
-        self.current_media_path
+    pub(super) fn get_current_media_path(&self) -> Option<&PathBuf> {
+        self.current_media_path.as_ref()
     }
 
     pub(super) fn get_fps(&self) -> f32 {
@@ -152,16 +199,16 @@ impl<'vlc> ActionHandler<'vlc> {
             }
 
             Action::ConcatClips => {
-                let s = String::from(self.current_media_path.to_str().unwrap()) + "_clips";
-                let clips_dir_path = Path::new(s.as_str());
+                let mut clips_dir_path = self.project_dir.clone();
+                clips_dir_path.push("_clips");
                 if clips_dir_path.exists() == false {
                     std::fs::create_dir(&clips_dir_path).expect("unable to create directory");
                 }
 
-                let s2 = self.current_media_path.to_str().unwrap().to_string() + "_condensed";
-                let condensed_dir_path = Path::new(s2.as_str());
+                let mut condensed_dir_path = self.project_dir.clone();
+                condensed_dir_path.push("_condensed");
                 std::fs::create_dir(&condensed_dir_path).unwrap();
-                let result = ffmpeg::concat(clips_dir_path, condensed_dir_path);
+                let result = ffmpeg::concat(&clips_dir_path, &condensed_dir_path);
                 let msg = if let Err(e) = result {
                     println!("{}", e);
                     "error concatenating"
@@ -181,14 +228,15 @@ impl<'vlc> ActionHandler<'vlc> {
                     self.loop_start, self.loop_end
                 );
 
-                let s = String::from(self.current_media_path.to_str().unwrap()) + "_clips";
-                let clips_dir_path = Path::new(s.as_str());
+                let mut clips_dir_path = self.project_dir.clone();
+                clips_dir_path.push("_clips");
                 if clips_dir_path.exists() == false {
                     std::fs::create_dir(&clips_dir_path).expect("unable to create directory");
                 }
 
                 let mut extension = "";
-                if let Some(s) = self.current_media_path.extension() {
+                let current_media_path = self.current_media_path.as_ref().unwrap();
+                if let Some(s) = current_media_path.extension() {
                     if let Some(ext) = s.to_str() {
                         extension = ext;
                     }
@@ -220,7 +268,7 @@ impl<'vlc> ActionHandler<'vlc> {
                     .arg("-ss")
                     .arg(format!("{}", start))
                     .arg("-i")
-                    .arg(self.current_media_path)
+                    .arg(current_media_path)
                     .arg("-t")
                     .arg(format!("{}", duration))
                     .arg("-c")
@@ -391,41 +439,27 @@ impl<'vlc> ActionHandler<'vlc> {
             }
 
             Action::Stop | Action::NextMedia => {
-                self.current_media_path = self.media_iter.next().unwrap();
-                /*
-                    maybe use "load_media" method for attaching to event manager?
-                    md = load_media(&instance, self.current_media_path, &tx);
-                */
-                let md = vlc::Media::new_path(&self.vlc_instance, self.current_media_path).unwrap();
-                self.mdp.set_media(&md);
-                self.mdp.play().unwrap();
+                if let Some(media_path) = self.media_iter.next() {
+                    self.play_media(&media_path);
+                }
             }
 
             Action::PreviousMedia => {
                 println!("playing media previous to {:?}", self.current_media_path);
-                let mut previous = self.media_iter.next().unwrap();
-                while let Some(media) = self.media_iter.next() {
-                    if media == self.current_media_path {
-                        self.current_media_path = previous;
-                        println!("previous is {:?}", self.current_media_path);
-                        /*
-                            maybe use "load_media" method for attaching to event manager?
-                            md = load_media(&instance, self.current_media_path, &tx);
-                        */
-                        let md = vlc::Media::new_path(&self.vlc_instance, self.current_media_path)
-                            .unwrap();
-                        self.mdp.set_media(&md);
-                        self.mdp.play().unwrap();
-                        break;
+                if let Some(current_media_path) = &self.current_media_path {
+                    let mut previous = self.media_iter.next().unwrap();
+                    while let Some(media) = self.media_iter.next() {
+                        if media == *current_media_path {
+                            self.play_media(&previous);
+                            break;
+                        }
+                        previous = media;
                     }
-                    previous = media;
                 }
             }
 
             Action::RestartMedia => {
-                let md = vlc::Media::new_path(&self.vlc_instance, self.current_media_path).unwrap();
-                self.mdp.set_media(&md);
-                self.mdp.play().unwrap();
+                self.mdp.set_time(0);
             }
 
             Action::Exit => return Err("No real error. Just exiting"),

@@ -11,6 +11,7 @@ pub(crate) enum GuiActions {
     SetEndFrame,
     KeyEvent(fltk::enums::Key),
     SetMediaPosition(f64),
+    SetProjectDirectory(String),
 }
 
 pub(crate) struct FltkGui {
@@ -135,6 +136,22 @@ impl FltkGui {
             "Analyze cached",
         );
         button_analyze_cached.emit(s.clone(), GuiActions::AnalyzeCached);
+
+        let mut project_chooser_button = fltk::button::Button::new(
+            gui_elements_start_x + 980,
+            gui_elements_start_y + 50,
+            150,
+            30,
+            "Open project directory",
+        );
+
+        let s_clone = s.clone();
+        project_chooser_button.set_callback(move |_widget| {
+            if let Some(dir) = fltk::dialog::dir_chooser("Open project directory", "", true) {
+                dbg!(dir.clone());
+                s_clone.send(GuiActions::SetProjectDirectory(dir));
+            }
+        });
 
         win.make_resizable(true);
         //win.fullscreen(true);

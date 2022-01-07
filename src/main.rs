@@ -179,35 +179,6 @@ fn run_with_fltk() {
 
 fn start_vlc(mut fltk_gui: Option<FltkGui>) {
     let args: Vec<String> = std::env::args().collect();
-
-    println!("args: {:?}", args);
-
-    if args.len() < 2 {
-        println!("Please specify a video file");
-        println!("Usage: gac path_to_a_media_file");
-        return;
-    }
-
-    let mut media_paths: Vec<PathBuf> = Vec::new();
-    for arg in args[1..].iter() {
-        let p = PathBuf::from(arg);
-        if p.is_dir() {
-            for dir_entry_result in p.read_dir().unwrap() {
-                if let Ok(directory_entry) = dir_entry_result {
-                    if let Some(s) = directory_entry.path().extension() {
-                        if let Some(extension) = s.to_str() {
-                            if VIDEO_EXTENSIONS.contains(&extension.to_uppercase().as_str()) {
-                                media_paths.push(directory_entry.path());
-                            }
-                        }
-                    }
-                }
-            }
-            break;
-        }
-        media_paths.push(p);
-    }
-
     let mut controller = Controller::new();
 
     let instance = Instance::new().unwrap();
@@ -246,14 +217,26 @@ fn start_vlc(mut fltk_gui: Option<FltkGui>) {
         }
     }
 
-    let mut action_handler = ActionHandler::new(&instance, mdp, &media_paths);
-
-    // start playing
-    action_handler.handle(Action::TogglePlayPause).unwrap();
-
     let mut acm_exe_path: Option<PathBuf> = None;
 
     let (tx_cutmarks_ready, rx_cutmarks_ready) = channel::<Arc<Mutex<Box<Cutmarks>>>>();
+
+    let project_dir = if let Some(s) = args.get(1) {
+        PathBuf::from(s.clone())
+    } else {
+        loop {
+            if fltk::app::wait() {
+                if let Some(gui_action) = fltk_gui.as_mut().unwrap().gui_actions_receiver.recv() {
+                    match gui_action {
+                        GuiActions::SetProjectDirectory(dir) => break PathBuf::from(dir),
+                        _ => {}
+                    }
+                }
+            }
+        }
+    };
+
+    let mut action_handler = ActionHandler::new(&instance, mdp, project_dir).unwrap();
 
     loop {
         let event_happened = fltk::app::wait_for(0.01).unwrap();
@@ -275,6 +258,12 @@ fn start_vlc(mut fltk_gui: Option<FltkGui>) {
             if event_happened {
                 if let Some(gui_action) = gui.gui_actions_receiver.recv() {
                     match gui_action {
+                        GuiActions::SetProjectDirectory(dir) => {
+                            action_handler
+                                .set_project_directory(PathBuf::from(dir))
+                                .unwrap();
+                        }
+
                         GuiActions::SetMediaPosition(pos) => {
                             action_handler.set_media_relative_position(pos as f32)
                         }
@@ -301,7 +290,7 @@ fn start_vlc(mut fltk_gui: Option<FltkGui>) {
                                     gui.calib_near_input.value().parse().unwrap();
                                 autocutmarks_calibrate_near(
                                     path,
-                                    action_handler.get_current_media_path(),
+                                    action_handler.get_current_media_path().unwrap(),
                                     action_handler.get_current_frame(),
                                     threshold_near,
                                 );
@@ -318,7 +307,7 @@ fn start_vlc(mut fltk_gui: Option<FltkGui>) {
                                     gui.calib_far_input.value().parse().unwrap();
                                 autocutmarks_calibrate_far(
                                     path,
-                                    action_handler.get_current_media_path(),
+                                    action_handler.get_current_media_path().unwrap(),
                                     action_handler.get_current_frame(),
                                     threshold_far,
                                 );
@@ -348,7 +337,7 @@ fn start_vlc(mut fltk_gui: Option<FltkGui>) {
                                     };
                                     analyze_autocutmarks(
                                         path,
-                                        action_handler.get_current_media_path(),
+                                        action_handler.get_current_media_path().unwrap(),
                                         start_frame,
                                         end_frame,
                                         action_handler.get_fps(),
@@ -373,7 +362,7 @@ fn start_vlc(mut fltk_gui: Option<FltkGui>) {
                                 };
                                 analyze_autocutmarks_cached(
                                     path,
-                                    action_handler.get_current_media_path(),
+                                    action_handler.get_current_media_path().unwrap(),
                                     action_handler.get_fps(),
                                     sensitivity,
                                     tx_cutmarks_ready.clone(),
