@@ -1,10 +1,29 @@
-use std::{collections::BTreeSet, iter::Cycle, path::PathBuf, process::Command};
+use std::{
+    collections::{BTreeSet, HashMap},
+    iter::Cycle,
+    path::PathBuf,
+    process::Command,
+};
 
 use vlc::{MarqueeOption, MediaPlayer};
 
 use crate::{ffmpeg, ClipType, Cutmarks, CLIP_SUFFIX_DEFENSE, CLIP_SUFFIX_OFFENSE};
 
 use super::Action;
+
+struct MediaMetadata {
+    clips: BTreeSet<i64>,
+    cutmarks: Option<Box<Cutmarks>>,
+}
+
+impl MediaMetadata {
+    fn new() -> MediaMetadata {
+        MediaMetadata {
+            clips: BTreeSet::new(),
+            cutmarks: None,
+        }
+    }
+}
 
 pub(super) struct ActionHandler<'vlc> {
     vlc_instance: &'vlc vlc::Instance,
@@ -13,8 +32,7 @@ pub(super) struct ActionHandler<'vlc> {
     project_dir: PathBuf,
     media_iter: Cycle<std::vec::IntoIter<PathBuf>>,
     current_media_path: Option<PathBuf>,
-    clips: BTreeSet<i64>,
-    cutmarks: Option<Box<Cutmarks>>,
+    media_metadata: HashMap<PathBuf, MediaMetadata>,
     loop_start: i64,
     loop_end: i64,
 }
@@ -25,8 +43,6 @@ impl<'vlc> ActionHandler<'vlc> {
         mdp: MediaPlayer,
         project_dir: PathBuf,
     ) -> Result<ActionHandler<'vlc>, std::io::Error> {
-        let clips: BTreeSet<i64> = BTreeSet::new();
-
         // Initialize VLC Marquee -- maybe we don't need this anymore with FLTK
         let mut marquee_option: MarqueeOption = Default::default();
         marquee_option.position = Some(0);
@@ -58,8 +74,7 @@ impl<'vlc> ActionHandler<'vlc> {
             project_dir,
             media_iter,
             current_media_path: None,
-            clips,
-            cutmarks: None,
+            media_metadata: HashMap::new(),
             loop_start: -1,
             loop_end: -1,
         };
@@ -92,6 +107,7 @@ impl<'vlc> ActionHandler<'vlc> {
         media_paths.sort();
         let media_iter = media_paths.into_iter().cycle();
         self.project_dir = dir_path;
+        self.media_metadata = HashMap::new();
         self.media_iter = media_iter;
         let next_media = self.media_iter.next().unwrap();
         self.play_media(&next_media);
@@ -99,17 +115,31 @@ impl<'vlc> ActionHandler<'vlc> {
         Ok(())
     }
 
+    fn get_current_media_metadata_mut(&mut self) -> Option<&mut MediaMetadata> {
+        let path = self.current_media_path.as_ref()?;
+        self.media_metadata.get_mut(path)
+    }
+
+    fn get_current_media_metadata(&self) -> Option<&MediaMetadata> {
+        let path = self.current_media_path.as_ref()?;
+        self.media_metadata.get(path)
+    }
+
     fn play_media(&mut self, current_media_path: &PathBuf) {
         let md = vlc::Media::new_path(&self.vlc_instance, &current_media_path).unwrap();
         self.current_media_path = Some(current_media_path.clone());
         self.mdp.set_media(&md);
-        self.loop_start = -1;
-        self.loop_end = -1;
+        if !self.media_metadata.contains_key(current_media_path) {
+            let result = self
+                .media_metadata
+                .insert(current_media_path.clone(), MediaMetadata::new());
+            assert!(result.is_none(), "Media Metadata already inserted?")
+        }
         self.mdp.play().unwrap();
     }
 
     pub(super) fn set_cutmarks(&mut self, cutmarks: &Box<Cutmarks>) {
-        self.cutmarks = Some(cutmarks.clone());
+        self.get_current_media_metadata_mut().unwrap().cutmarks = Some(cutmarks.clone());
     }
 
     pub(super) fn get_media_relative_position(&self) -> f32 {
@@ -224,7 +254,11 @@ impl<'vlc> ActionHandler<'vlc> {
             }
 
             Action::CutCurrentLoop(o_d_option) => {
-                self.clips.insert(self.loop_start);
+                let loop_start = self.loop_start;
+                self.get_current_media_metadata_mut()
+                    .unwrap()
+                    .clips
+                    .insert(loop_start);
                 println!(
                     "cutting from {:?} to {:?}...",
                     self.loop_start, self.loop_end
@@ -317,48 +351,42 @@ impl<'vlc> ActionHandler<'vlc> {
             }
 
             Action::PreviousClip => {
-                if self.clips.len() == 0 {
-                    self.handle(Action::PreviousMedia)?;
-                } else {
-                    let cur_time = self.mdp.get_time().unwrap();
-
-                    let mut iter = self.clips.iter().rev();
-                    while let Some(clip) = iter.next() {
-                        if clip <= &cur_time {
-                            if let Some(prev_clip) = iter.next() {
-                                self.mdp.set_time(*prev_clip);
-                                println!("previous clip from {}", *prev_clip);
-                            } else {
-                                self.mdp.set_time(*clip);
-                                println!("previous clip from {}", *clip);
-                            }
-                            break;
+                let clips = &self.get_current_media_metadata().unwrap().clips;
+                let cur_time = self.mdp.get_time().unwrap();
+                let mut iter = clips.iter().rev();
+                while let Some(clip) = iter.next() {
+                    if clip <= &cur_time {
+                        if let Some(prev_clip) = iter.next() {
+                            self.mdp.set_time(*prev_clip);
+                            println!("previous clip from {}", *prev_clip);
+                        } else {
+                            self.mdp.set_time(*clip);
+                            println!("previous clip from {}", *clip);
                         }
+                        break;
                     }
                 }
             }
 
             Action::NextClip => {
-                if self.clips.len() == 0 {
-                    self.handle(Action::NextMedia)?;
-                } else {
-                    let cur_time = self.mdp.get_time().unwrap();
-                    for clip in &mut self.clips.iter() {
-                        if clip >= &cur_time {
-                            self.mdp.set_time(*clip);
-                            println!("jumping to clip {}", *clip);
-                            break;
-                        }
+                let clips = &self.get_current_media_metadata().unwrap().clips;
+                let cur_time = self.mdp.get_time().unwrap();
+                for clip in &mut clips.iter() {
+                    if clip >= &cur_time {
+                        self.mdp.set_time(*clip);
+                        println!("jumping to clip {}", *clip);
+                        break;
                     }
                 }
             }
 
             Action::RestartClip => {
-                if self.clips.len() == 0 {
+                let clips = &self.get_current_media_metadata().unwrap().clips;
+                if clips.len() == 0 {
                     self.handle(Action::RestartMedia)?
                 } else {
                     let cur_time = self.mdp.get_time().unwrap();
-                    for clip in &mut self.clips.iter().rev() {
+                    for clip in &mut clips.iter().rev() {
                         if clip <= &cur_time {
                             self.mdp.set_time(*clip);
                             println!("restarting clip from to {}", *clip);
@@ -371,7 +399,7 @@ impl<'vlc> ActionHandler<'vlc> {
             Action::PreviousCutmark => {
                 let cur_time = self.mdp.get_time().unwrap();
 
-                if let Some(cutmarks) = &self.cutmarks {
+                if let Some(cutmarks) = &self.get_current_media_metadata().unwrap().cutmarks {
                     let mut iter = cutmarks.iter().rev();
                     while let Some(cutmark) = iter.next() {
                         if cutmark <= &cur_time {
@@ -395,7 +423,7 @@ impl<'vlc> ActionHandler<'vlc> {
 
             Action::NextCutmark => {
                 let cur_time = self.mdp.get_time().unwrap();
-                if let Some(cutmarks) = &self.cutmarks {
+                if let Some(cutmarks) = &self.get_current_media_metadata().unwrap().cutmarks {
                     for cutmark in &mut cutmarks.iter() {
                         if cutmark > &cur_time {
                             self.mdp.set_time(*cutmark);
