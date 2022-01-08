@@ -240,12 +240,15 @@ impl<'vlc> ActionHandler<'vlc> {
                 let mut condensed_dir_path = self.project_dir.clone();
                 condensed_dir_path.push("_condensed");
                 std::fs::create_dir(&condensed_dir_path).unwrap();
+                self.mdp
+                    .show_marqee_text("start concatenating clips", &self.marquee_option)
+                    .unwrap();
                 let result = ffmpeg::concat(&clips_dir_path, &condensed_dir_path);
                 let msg = if let Err(e) = result {
                     println!("{}", e);
                     "error concatenating"
                 } else {
-                    "concatenating clips"
+                    "successfully concatenated clips"
                 };
 
                 self.mdp
@@ -279,7 +282,7 @@ impl<'vlc> ActionHandler<'vlc> {
                 }
 
                 assert!(self.loop_start < i64::pow(10, 8));
-                // 8 leading zeros to be able to store 24h.
+                // timestamp formatted with 8 digits to be able to store 24h.
                 let mut out_file_name = format!(
                     "{}_{:0>8}",
                     current_media_path.file_name().unwrap().to_str().unwrap(),

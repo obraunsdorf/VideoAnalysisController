@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 use std::io::Write;
 use std::path::Path;
@@ -6,28 +6,19 @@ use std::process::Command;
 
 pub fn concat(input_dir_path: &Path, output_dir_path: &Path) -> Result<(), String> {
     let index_file_path = Path::new("index.txt");
-
-    let mut sorted_offense = BTreeMap::new();
-    let mut sorted_defense = BTreeMap::new();
-    let mut sorted_all = BTreeMap::new();
+    let mut sorted_offense = BTreeSet::new();
+    let mut sorted_defense = BTreeSet::new();
+    let mut sorted_all = BTreeSet::new();
     for entry_result in std::fs::read_dir(input_dir_path).unwrap() {
         let entry = entry_result.unwrap();
         let file_path = entry.path();
-        let mut stem = file_path.file_stem().unwrap().to_str().unwrap();
+        let stem = file_path.file_stem().unwrap().to_str().unwrap();
         if stem.ends_with(crate::CLIP_SUFFIX_OFFENSE) {
-            stem = stem.trim_end_matches(crate::CLIP_SUFFIX_OFFENSE);
-            let order = stem.parse::<u64>().unwrap();
-            sorted_offense.insert(order, file_path.clone());
-            sorted_all.insert(order, file_path.clone());
+            sorted_offense.insert(file_path.clone());
         } else if stem.ends_with(crate::CLIP_SUFFIX_DEFENSE) {
-            stem = stem.trim_end_matches(crate::CLIP_SUFFIX_DEFENSE);
-            let order = stem.parse::<u64>().unwrap();
-            sorted_defense.insert(order, file_path.clone());
-            sorted_all.insert(order, file_path.clone());
-        } else {
-            let order = stem.parse::<u64>().unwrap();
-            sorted_all.insert(order, file_path.clone());
+            sorted_defense.insert(file_path.clone());
         }
+        sorted_all.insert(file_path.clone());
     }
 
     let mut index_file = std::fs::File::create(index_file_path).unwrap();
@@ -42,9 +33,10 @@ pub fn concat(input_dir_path: &Path, output_dir_path: &Path) -> Result<(), Strin
         (sorted_all, all_out),
     ]
     .iter()
+    .filter(|(sorted, _path)| !sorted.is_empty())
     {
         let output_file_path = output_file_pathbuf.as_path();
-        for file_path in sorted.values() {
+        for file_path in sorted.iter() {
             let index_entry = format!("file '{}'\n", file_path.to_str().unwrap());
             index_file.write_all(index_entry.as_bytes()).unwrap();
         }
