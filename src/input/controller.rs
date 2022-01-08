@@ -38,7 +38,8 @@ impl Controller {
 
     fn long_press_map(btn: Button) -> Option<Action> {
         match btn {
-            Button::DPadLeft => Some(Action::PreviousClip),
+            Button::DPadLeft => Some(Action::PreviousMedia),
+            Button::DPadRight => Some(Action::NextMedia),
             Button::South => Some(Action::BreakLoop),
             Button::West => Some(Action::PreviousCutmark),
             Button::East => Some(Action::NextCutmark),
@@ -57,7 +58,7 @@ impl Controller {
             Button::LeftTrigger => Some(Action::DecreaseSpeed),
             Button::RightTrigger => Some(Action::IncreaseSpeed),
             Button::DPadRight => Some(Action::NextClip),
-            Button::DPadLeft => Some(Action::RestartClip),
+            Button::DPadLeft => Some(Action::PreviousClip),
             Button::DPadUp => Some(Action::CutCurrentLoop(Some(ClipType::Offense))),
             Button::DPadDown => Some(Action::CutCurrentLoop(Some(ClipType::Defense))),
             _ => None,

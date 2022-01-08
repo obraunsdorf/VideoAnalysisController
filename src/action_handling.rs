@@ -103,6 +103,8 @@ impl<'vlc> ActionHandler<'vlc> {
         let md = vlc::Media::new_path(&self.vlc_instance, &current_media_path).unwrap();
         self.current_media_path = Some(current_media_path.clone());
         self.mdp.set_media(&md);
+        self.loop_start = -1;
+        self.loop_end = -1;
         self.mdp.play().unwrap();
     }
 
@@ -241,20 +243,28 @@ impl<'vlc> ActionHandler<'vlc> {
                         extension = ext;
                     }
                 }
-                let mut out_file_name = self.loop_start.to_string();
-                let mut user_hint = "";
-                if let Some(off_def) = o_d_option {
+
+                assert!(self.loop_start < i64::pow(10, 8));
+                // 8 leading zeros to be able to store 24h.
+                let mut out_file_name = format!(
+                    "{}_{:0>8}",
+                    current_media_path.file_name().unwrap().to_str().unwrap(),
+                    self.loop_start.to_string()
+                );
+                let user_hint = if let Some(off_def) = o_d_option {
                     match off_def {
                         ClipType::Offense => {
                             out_file_name.push_str(CLIP_SUFFIX_OFFENSE);
-                            user_hint = " as Offense"
+                            " as Offense"
                         }
                         ClipType::Defense => {
                             out_file_name.push_str(CLIP_SUFFIX_DEFENSE);
-                            user_hint = " as Defense"
+                            " as Defense"
                         }
                     }
-                }
+                } else {
+                    ""
+                };
                 out_file_name = out_file_name + "." + extension;
                 let out_file_path = clips_dir_path.join(out_file_name);
 
