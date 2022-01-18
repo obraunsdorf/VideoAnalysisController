@@ -19,6 +19,7 @@ use vlc::{Instance, MediaPlayer, MediaPlayerVideoEx};
 
 pub mod ffmpeg;
 mod input;
+use std::path::Path;
 use std::path::PathBuf;
 
 mod action_handling;
@@ -37,7 +38,7 @@ pub enum ClipType {
     Defense,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Action {
     TogglePlayPause,
     Rewind(f32),
@@ -61,9 +62,10 @@ pub enum Action {
     Stop,
     Exit,
 }
-impl Into<&str> for Action {
-    fn into(self) -> &'static str {
-        match self {
+
+impl From<Action> for &str {
+    fn from(action: Action) -> Self {
+        match action {
             Action::TogglePlayPause => "TogglePlayPause",
             Action::Rewind(_) => "Rewind",
             Action::Forward(_) => "Forward",
@@ -164,7 +166,6 @@ fn main() {
     run_with_fltk();
 }
 
-
 fn run_with_fltk() {
     let fltk_gui = FltkGui::new();
     start_vlc(Some(fltk_gui))
@@ -204,10 +205,8 @@ fn start_vlc(mut fltk_gui: Option<FltkGui>) {
         // Do it thru fltk
         mdp.set_key_input(false);
         mdp.set_mouse_input(false);
-    } else {
-        if mdp.get_fullscreen() == false {
-            mdp.toggle_fullscreen();
-        }
+    } else if !mdp.get_fullscreen() {
+        mdp.toggle_fullscreen();
     }
 
     let mut acm_exe_path: Option<PathBuf> = None;
@@ -219,11 +218,10 @@ fn start_vlc(mut fltk_gui: Option<FltkGui>) {
     } else {
         loop {
             if fltk::app::wait() {
-                if let Some(gui_action) = fltk_gui.as_mut().unwrap().gui_actions_receiver.recv() {
-                    match gui_action {
-                        GuiActions::SetProjectDirectory(dir) => break PathBuf::from(dir),
-                        _ => {}
-                    }
+                if let Some(GuiActions::SetProjectDirectory(dir)) =
+                    fltk_gui.as_mut().unwrap().gui_actions_receiver.recv()
+                {
+                    break PathBuf::from(dir);
                 }
             }
         }
@@ -238,7 +236,7 @@ fn start_vlc(mut fltk_gui: Option<FltkGui>) {
 
         if let Ok(cutmark_mutex) = rx_cutmarks_ready.try_recv() {
             let guard = cutmark_mutex.lock().unwrap();
-            let cutmarks = &*guard;
+            let cutmarks = guard.clone(); //TODO: does this clone the BTreeSet? If yes, rather use cutmark_mutex.into_inner()?
             action_handler.set_cutmarks(cutmarks)
         }
 
@@ -399,15 +397,15 @@ fn start_vlc(mut fltk_gui: Option<FltkGui>) {
 type Cutmarks = BTreeSet<i64>;
 
 fn analyze_autocutmarks(
-    acm_exe_path: &PathBuf,
-    videofile: &PathBuf,
+    acm_exe_path: &Path,
+    videofile: &Path,
     start_frame: Option<i64>,
     end_frame: Option<i64>,
     fps: f32,
     tx: Sender<Arc<Mutex<Box<Cutmarks>>>>,
 ) {
-    let acm_exe_path = acm_exe_path.clone();
-    let videofile = videofile.clone();
+    let acm_exe_path = acm_exe_path.to_path_buf();
+    let videofile = videofile.to_path_buf();
     std::thread::spawn(move || {
         let mut cmd = std::process::Command::new(acm_exe_path);
 
@@ -428,14 +426,14 @@ fn analyze_autocutmarks(
 }
 
 fn analyze_autocutmarks_cached(
-    acm_exe_path: &PathBuf,
-    videofile: &PathBuf,
+    acm_exe_path: &Path,
+    videofile: &Path,
     fps: f32,
     sensitivity: Option<f32>,
     tx: Sender<Arc<Mutex<Box<Cutmarks>>>>,
 ) {
-    let acm_exe_path = acm_exe_path.clone();
-    let videofile = videofile.clone();
+    let acm_exe_path = acm_exe_path.to_path_buf();
+    let videofile = videofile.to_path_buf();
     std::thread::spawn(move || {
         let mut cmd = std::process::Command::new(acm_exe_path);
         cmd.arg("--mode=use-cached");
@@ -454,8 +452,8 @@ fn analyze_autocutmarks_cached(
 }
 
 fn autocutmarks_calibrate_near(
-    acm_exe_path: &PathBuf,
-    videofile: &PathBuf,
+    acm_exe_path: &Path,
+    videofile: &Path,
     start_frame: i64,
     threshold: u64,
 ) {
@@ -472,8 +470,8 @@ fn autocutmarks_calibrate_near(
 }
 
 fn autocutmarks_calibrate_far(
-    acm_exe_path: &PathBuf,
-    videofile: &PathBuf,
+    acm_exe_path: &Path,
+    videofile: &Path,
     start_frame: i64,
     threshold: u64,
 ) {
@@ -493,12 +491,10 @@ fn read_cutmarks_file(fps: f32) -> Box<Cutmarks> {
     let cutmarks_file = File::open("snaps.txt").unwrap();
     let lines = io::BufReader::new(cutmarks_file).lines();
     let mut cutmarks = Box::new(Cutmarks::new());
-    for line in lines {
-        if let Ok(l) = line {
-            let cutmark: u64 = l.parse().unwrap();
-            let time = (cutmark as f32 / fps * 1000.0) as i64;
-            cutmarks.insert(time);
-        }
+    for line in lines.flatten() {
+        let cutmark: u64 = line.parse().unwrap();
+        let time = (cutmark as f32 / fps * 1000.0) as i64;
+        cutmarks.insert(time);
     }
 
     cutmarks

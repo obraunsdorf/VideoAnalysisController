@@ -45,8 +45,9 @@ pub(crate) fn action_from_pressed_key(key: fltk::enums::Key) -> Option<Action> {
             key.bits() as u32,
             action_option
         );
-        return action_option.clone();
+
+        action_option.clone()
     } else {
-        return None;
+        None
     }
 }

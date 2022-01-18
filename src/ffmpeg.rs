@@ -56,7 +56,7 @@ pub fn concat(input_dir_path: &Path, output_dir_path: &Path) -> Result<(), Strin
             .arg(output_file_path.to_str().unwrap())
             .output()
         {
-            if output.status.success() == false {
+            if !output.status.success() {
                 let code = match output.status.code() {
                     Some(c) => format!("{}", c),
                     None => "?".to_owned(),

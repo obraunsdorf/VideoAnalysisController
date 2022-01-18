@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeSet, HashMap},
     iter::Cycle,
+    path::Path,
     path::PathBuf,
     process::Command,
 };
@@ -44,14 +45,16 @@ impl<'vlc> ActionHandler<'vlc> {
         project_dir: PathBuf,
     ) -> Result<ActionHandler<'vlc>, std::io::Error> {
         // Initialize VLC Marquee -- maybe we don't need this anymore with FLTK
-        let mut marquee_option: MarqueeOption = Default::default();
-        marquee_option.position = Some(0);
-        marquee_option.opacity = Some(70);
-        marquee_option.timeout = Some(1000);
+        let marquee_option = MarqueeOption {
+            position: Some(0),
+            opacity: Some(70),
+            timeout: Some(1000),
+            ..Default::default()
+        };
 
         let mut media_paths: Vec<PathBuf> = project_dir
             .read_dir()?
-            .flat_map(|x| x)
+            .flatten()
             .filter(|entry| {
                 if let Some(s) = entry.path().extension() {
                     if let Some(extension) = s.to_str() {
@@ -60,7 +63,7 @@ impl<'vlc> ActionHandler<'vlc> {
                         }
                     }
                 }
-                return false;
+                false
             })
             .map(|entry| entry.path())
             .collect();
@@ -68,8 +71,8 @@ impl<'vlc> ActionHandler<'vlc> {
         media_paths.sort();
         let media_iter = media_paths.into_iter().cycle();
         let mut ah = ActionHandler {
-            vlc_instance: vlc_instance,
-            mdp: mdp,
+            vlc_instance,
+            mdp,
             marquee_option,
             project_dir,
             media_iter,
@@ -90,7 +93,7 @@ impl<'vlc> ActionHandler<'vlc> {
     ) -> Result<(), std::io::Error> {
         let mut media_paths: Vec<PathBuf> = dir_path
             .read_dir()?
-            .flat_map(|x| x)
+            .flatten()
             .filter(|entry| {
                 if let Some(s) = entry.path().extension() {
                     if let Some(extension) = s.to_str() {
@@ -99,7 +102,7 @@ impl<'vlc> ActionHandler<'vlc> {
                         }
                     }
                 }
-                return false;
+                false
             })
             .map(|entry| entry.path())
             .collect();
@@ -125,21 +128,21 @@ impl<'vlc> ActionHandler<'vlc> {
         self.media_metadata.get(path)
     }
 
-    fn play_media(&mut self, current_media_path: &PathBuf) {
-        let md = vlc::Media::new_path(&self.vlc_instance, &current_media_path).unwrap();
-        self.current_media_path = Some(current_media_path.clone());
+    fn play_media(&mut self, current_media_path: &Path) {
+        let md = vlc::Media::new_path(self.vlc_instance, &current_media_path).unwrap();
+        self.current_media_path = Some(current_media_path.to_path_buf());
         self.mdp.set_media(&md);
         if !self.media_metadata.contains_key(current_media_path) {
             let result = self
                 .media_metadata
-                .insert(current_media_path.clone(), MediaMetadata::new());
+                .insert(current_media_path.to_path_buf(), MediaMetadata::new());
             assert!(result.is_none(), "Media Metadata already inserted?")
         }
         self.mdp.play().unwrap();
     }
 
-    pub(super) fn set_cutmarks(&mut self, cutmarks: &Box<Cutmarks>) {
-        self.get_current_media_metadata_mut().unwrap().cutmarks = Some(cutmarks.clone());
+    pub(super) fn set_cutmarks(&mut self, cutmarks: Box<Cutmarks>) {
+        self.get_current_media_metadata_mut().unwrap().cutmarks = Some(cutmarks);
     }
 
     pub(super) fn get_media_relative_position(&self) -> f32 {
@@ -233,7 +236,7 @@ impl<'vlc> ActionHandler<'vlc> {
             Action::ConcatClips => {
                 let mut clips_dir_path = self.project_dir.clone();
                 clips_dir_path.push("_clips");
-                if clips_dir_path.exists() == false {
+                if !clips_dir_path.exists() {
                     std::fs::create_dir(&clips_dir_path).expect("unable to create directory");
                 }
 
@@ -252,7 +255,7 @@ impl<'vlc> ActionHandler<'vlc> {
                 };
 
                 self.mdp
-                    .show_marqee_text(&msg, &self.marquee_option)
+                    .show_marqee_text(msg, &self.marquee_option)
                     .unwrap();
             }
 
@@ -269,7 +272,7 @@ impl<'vlc> ActionHandler<'vlc> {
 
                 let mut clips_dir_path = self.project_dir.clone();
                 clips_dir_path.push("_clips");
-                if clips_dir_path.exists() == false {
+                if !clips_dir_path.exists() {
                     std::fs::create_dir(&clips_dir_path).expect("unable to create directory");
                 }
 
@@ -385,7 +388,7 @@ impl<'vlc> ActionHandler<'vlc> {
 
             Action::RestartClip => {
                 let clips = &self.get_current_media_metadata().unwrap().clips;
-                if clips.len() == 0 {
+                if clips.is_empty() {
                     self.handle(Action::RestartMedia)?
                 } else {
                     let cur_time = self.mdp.get_time().unwrap();
