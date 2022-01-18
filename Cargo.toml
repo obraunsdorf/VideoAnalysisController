@@ -8,13 +8,4 @@ build = "build.rs"
 [dependencies]
 vlc-rs = { git  = "https://github.com/obraunsdorf/mfkl-vlc-rs.git" }
 gilrs = "0.7.1"
-configuration = "0.7.2"
-#clap = "2.33.3"
 fltk = { version = "1.2.3", features = ["fltk-bundled"] }
-libc = "0.2.101"
-
-[target.'cfg(windows)'.dependencies]
-winapi-easy = "0.1.0"
-
-[target.'cfg(target_os="linux")'.dependencies]
-inputbot = "0.5.0"

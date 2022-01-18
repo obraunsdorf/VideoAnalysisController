@@ -25,8 +25,6 @@ mod action_handling;
 use action_handling::ActionHandler;
 
 mod fltk_gui;
-#[cfg(target_os = "windows")]
-use libc::c_void;
 
 use crate::input::{controller::Controller, keyboard_fltk::action_from_pressed_key};
 
@@ -166,11 +164,6 @@ fn main() {
     run_with_fltk();
 }
 
-#[cfg(target_os = "windows")]
-type WindowHandle = *mut c_void;
-
-#[cfg(target_os = "linux")]
-type WindowHandle = u64;
 
 fn run_with_fltk() {
     let fltk_gui = FltkGui::new();
@@ -199,7 +192,7 @@ fn start_vlc(mut fltk_gui: Option<FltkGui>) {
     let mdp = MediaPlayer::new(&instance).unwrap();
 
     if let Some(gui) = &fltk_gui {
-        let handle: WindowHandle = gui.vlc_win.raw_handle();
+        let handle: fltk::window::RawHandle = gui.vlc_win.raw_handle();
 
         #[cfg(target_os = "windows")]
         mdp.set_hwnd(handle);
